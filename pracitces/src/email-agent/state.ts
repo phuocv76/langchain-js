@@ -1,46 +1,32 @@
+// Libs for third party
 import { Annotation } from "@langchain/langgraph";
 import { CopilotKitStateAnnotation } from "@copilotkit/sdk-js/langgraph";
-import type {
-  Classification,
-  DocHit,
-  IssueRef,
-  ParsedEmail,
-  ReviewDecision,
-} from "./types.js";
 
-const lastValue = <T>() => ({
-  reducer: (_prev: T, next: T) => next,
-});
+// Types
+import type { EmailClassification, ReviewDecision } from "./types.js";
 
-/**
- * Shared graph state for the email agent. Every field is JSON-serializable so it
- * can be persisted by a checkpointer and streamed to the CopilotKit UI.
- *
- * Spreading CopilotKitStateAnnotation adds the `messages` and `copilotkit`
- * channels that the AG-UI / CopilotKit bridge expects (Phase 3).
- */
-export const EmailState = Annotation.Root({
+/** LangGraph state for the read-and-reply email agent. */
+export const EmailAgentState = Annotation.Root({
   ...CopilotKitStateAnnotation.spec,
-  email: Annotation<ParsedEmail | null>({ ...lastValue(), default: () => null }),
-  classification: Annotation<Classification | null>({ ...lastValue(), default: () => null }),
-  docHits: Annotation<DocHit[]>({ ...lastValue(), default: () => [] }),
-  issueRef: Annotation<IssueRef | null>({ ...lastValue(), default: () => null }),
-  draft: Annotation<string>({ ...lastValue(), default: () => "" }),
-  decision: Annotation<ReviewDecision | null>({ ...lastValue(), default: () => null }),
-  sent: Annotation<boolean>({ ...lastValue(), default: () => false }),
-  /** Human-readable progress trail, useful for CLI logs and UI state. */
-  status: Annotation<string[]>({
-    reducer: (prev: string[], next: string[]) => prev.concat(next),
+  emailId: Annotation<string | undefined>,
+  threadId: Annotation<string | undefined>,
+  senderEmail: Annotation<string | undefined>,
+  subject: Annotation<string | undefined>,
+  emailContent: Annotation<string | undefined>,
+  classification: Annotation<EmailClassification | undefined>,
+  searchResults: Annotation<string[]>({
+    reducer: (current, next) => current.concat(next),
+    default: () => [],
+  }),
+  responseText: Annotation<string | undefined>,
+  /** Latest reviewer decision; cleared after draftReply consumes edit feedback. */
+  decision: Annotation<ReviewDecision | undefined>,
+  status: Annotation<string | undefined>,
+  /** Append-only progress trail persisted by the checkpointer (CLI memory demo). */
+  steps: Annotation<string[]>({
+    reducer: (current, next) => current.concat(next),
     default: () => [],
   }),
 });
 
-export type EmailStateType = typeof EmailState.State;
-
-/** Config the graph reads from `configurable`. */
-export interface EmailConfigurable {
-  /** When true, humanReview approves without pausing (Phase 1 CLI). */
-  autoApprove?: boolean;
-  /** Read this specific Gmail message id instead of the latest unread. */
-  emailId?: string;
-}
+export type EmailAgentStateType = typeof EmailAgentState.State;

@@ -8,7 +8,7 @@
  *   3. Put GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.
  *
  * Run:
- *   npm run gmail:token
+ *   pnpm gmail:token
  *
  * It starts a tiny local server, opens the consent screen, captures the code,
  * and prints GOOGLE_REFRESH_TOKEN for you to paste into .env.

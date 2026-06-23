@@ -1,15 +1,39 @@
-import type { EmailStateType } from "../state.js";
+// Libs for third party
+import { Command } from "@langchain/langgraph";
+
+// Internal
 import { searchDocs } from "../integrations/doc-search.js";
 
-/** Doc Search: query the knowledge base for context relevant to the email. */
-export async function docSearch(state: EmailStateType): Promise<Partial<EmailStateType>> {
-  if (!state.email) throw new Error("docSearch requires an email in state.");
+// Types
+import type { EmailAgentStateType } from "../state.js";
 
-  const query = `${state.email.subject}\n${state.email.body || state.email.snippet}`;
-  const docHits = await searchDocs(query, 3);
+/**
+ * Searches the local knowledge base and routes to draftReply.
+ *
+ * @param state - Current graph state.
+ */
+export const docSearch = async (
+  state: EmailAgentStateType,
+): Promise<Command<"draftReply">> => {
+  const classification = state.classification;
+  const query = classification
+    ? `${classification.intent} ${classification.topic} ${classification.summary}`
+    : (state.emailContent ?? "");
 
-  return {
-    docHits,
-    status: [`Doc search: found ${docHits.length} relevant excerpt(s)`],
-  };
-}
+  let searchResults: string[];
+
+  try {
+    searchResults = await searchDocs(query);
+    if (searchResults.length === 0) {
+      searchResults = ["No matching documentation snippets were found."];
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    searchResults = [`Documentation search unavailable: ${message}`];
+  }
+
+  return new Command({
+    update: { searchResults, status: "docs_searched", steps: ["Documentation search completed"] },
+    goto: "draftReply",
+  });
+};

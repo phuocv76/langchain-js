@@ -1,0 +1,88 @@
+---
+description: ES6 functions, JSDoc, and grouped imports for TypeScript/JavaScript
+globs: "**/*.{ts,tsx,mjs}"
+alwaysApply: true
+---
+
+# ES6 Coding Standards
+
+When writing or editing TypeScript/JavaScript in this project, follow these conventions.
+
+## Functions — ES6 syntax
+
+- Prefer `const` arrow functions over `function` declarations.
+- Use `async`/`await` instead of `.then()` chains.
+- Use `const`/`let`; never `var`.
+- Export named functions as `export const fn = ...` (not `export function fn`).
+
+```typescript
+// ❌ BAD
+function buildChain() { ... }
+export async function readEmail(state) { ... }
+
+// ✅ GOOD
+/** Builds the prompt → model → parser chain. */
+const buildChain = () => { ... };
+
+/** Reads the target email from Gmail and returns partial state. */
+export const readEmail = async (
+  state: EmailStateType,
+): Promise<Partial<EmailStateType>> => { ... };
+```
+
+## Function documentation
+
+Every exported function and every non-trivial helper must have a JSDoc block above it.
+
+- One-line summary for simple functions.
+- `@param`, `@returns`, and `@throws` when the signature is not self-explanatory.
+
+```typescript
+/**
+ * Fetches an email by ID or the latest unread message.
+ *
+ * @param emailId - Gmail message ID; when omitted, uses the latest unread.
+ * @returns Parsed email payload, or null if none found.
+ */
+const fetchTargetEmail = async (emailId?: string): Promise<Email | null> => { ... };
+```
+
+## Grouped imports
+
+Separate import groups with a blank line. Prefix each group with a comment.
+
+Order:
+
+1. `// Libs for third party` — npm packages (`@langchain/*`, `react`, etc.)
+2. `// Internal` — relative project imports (`../lib/`, `./nodes/`, etc.)
+3. `// Types` — optional; use when type-only imports are numerous
+
+Within a group, sort alphabetically. Use `.js` extensions on relative imports (ESM).
+
+```typescript
+// Libs for third party
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+// Internal
+import { getChatModel } from "../lib/model.js";
+```
+
+Type-only imports may live in the third-party group or a dedicated `// Types` group:
+
+```typescript
+// Types
+import type { LangGraphRunnableConfig } from "@langchain/langgraph";
+import type { EmailStateType } from "../state.js";
+```
+
+## TypeScript best practices
+
+- Add **explicit return types** on every exported function and public helpers.
+- Use `import type` (or inline `type` imports) for symbols used only as types.
+- Prefer `interface` for object shapes; use `type` for unions, tuples, and aliases.
+- Name input-object parameters with a dedicated `interface` when they have 3+ fields.
+- Avoid `any`; use `unknown` and narrow, or generics, when the type is not yet known.
+- Prefer `readonly` on arrays/objects that must not be mutated by callers.
+- Use `satisfies` over `as` when validating a value still fits a wider type.
+- Keep function signatures narrow — optional params and defaults over overload sprawl.

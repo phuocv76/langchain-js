@@ -1,19 +1,17 @@
 {
-  "name": "langchain-langgraph-practices",
+  "name": "email-agent-practice",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Practice exercises for LangChain.js and LangGraph.js (TypeScript, OpenAI).",
-  "workspaces": ["web"],
+  "packageManager": "pnpm@10.15.0",
+  "description": "LangChain + LangGraph practice: read and reply to email with human-in-the-loop.",
   "scripts": {
-    "exercise": "tsx",
-    "new": "node scripts/new-exercise.mjs",
+    "cli": "tsx src/main.ts",
     "gmail:token": "node scripts/get-gmail-token.mjs",
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
     "dev:agent": "langgraphjs dev",
-    "dev:web": "npm --workspace web run dev",
-    "dev": "concurrently -n agent,web -c blue,green \"npm run dev:agent\" \"npm run dev:web\""
+    "dev:web": "pnpm -C web dev",
+    "dev": "concurrently -n agent,web -c blue,green \"pnpm run dev:agent\" \"pnpm run dev:web\""
   },
   "dependencies": {
     "@langchain/core": "^1.2.0",

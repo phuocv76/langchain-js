@@ -1,41 +1,49 @@
-import type { EmailStateType } from "../state.js";
-import { createIssue, findExistingIssue } from "../integrations/github.js";
+// Libs for third party
+import { Command } from "@langchain/langgraph";
 
-/** Bug Track: create (or reuse) a GitHub issue for the reported problem. */
-export async function bugTrack(state: EmailStateType): Promise<Partial<EmailStateType>> {
-  if (!state.email) throw new Error("bugTrack requires an email in state.");
+// Internal
+import { createBugIssue } from "../integrations/github.js";
 
-  const { email, classification } = state;
-  const title = classification?.topic
-    ? `[Support] ${classification.topic}`
-    : `[Support] ${email.subject}`;
+// Types
+import type { EmailAgentStateType } from "../state.js";
 
-  const existing = await findExistingIssue(classification?.topic ?? email.subject);
-  if (existing) {
-    return {
-      issueRef: existing,
-      status: [`Bug track: reused existing issue #${existing.number}`],
-    };
+/**
+ * Files a GitHub issue for bug reports and routes to draftReply.
+ *
+ * @param state - Current graph state.
+ */
+export const bugTrack = async (
+  state: EmailAgentStateType,
+): Promise<Command<"draftReply">> => {
+  const classification = state.classification;
+  const title = `[Email Bug] ${classification?.topic ?? state.subject ?? "Customer report"}`;
+
+  const body = [
+    "## Reported via email agent",
+    "",
+    `**From:** ${state.senderEmail ?? "unknown"}`,
+    `**Subject:** ${state.subject ?? "(none)"}`,
+    "",
+    "### Email body",
+    state.emailContent ?? "(empty)",
+  ].join("\n");
+
+  let searchResults: string[];
+
+  try {
+    const issue = await createBugIssue({ title, body });
+    searchResults = [`GitHub issue #${issue.number} created: ${issue.url}`];
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    searchResults = [`Bug tracking unavailable: ${message}`];
   }
 
-  const body = `Reported via support email.
-
-**From:** ${email.from}
-**Subject:** ${email.subject}
-**Urgency:** ${classification?.urgency ?? "normal"}
-
----
-
-${email.body || email.snippet}`;
-
-  const labels = ["support"];
-  if (classification?.urgency === "urgent" || classification?.urgency === "high") {
-    labels.push("priority");
-  }
-
-  const issueRef = await createIssue({ title, body, labels });
-  return {
-    issueRef,
-    status: [`Bug track: created issue #${issueRef.number} (${issueRef.url})`],
-  };
-}
+  return new Command({
+    update: {
+      searchResults,
+      status: "bug_tracked",
+      steps: ["Bug report filed on GitHub"],
+    },
+    goto: "draftReply",
+  });
+};

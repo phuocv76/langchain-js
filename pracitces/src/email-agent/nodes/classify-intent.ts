@@ -1,32 +1,57 @@
-import { z } from "zod";
-import type { EmailStateType } from "../state.js";
+// Libs for third party
+import { Command, END } from "@langchain/langgraph";
+
+// Internal
 import { getChatModel } from "../../lib/model.js";
-import { CLASSIFY_SYSTEM, classifyHuman } from "../prompts.js";
+import { EmailClassificationSchema } from "../types.js";
 
-const classificationSchema = z.object({
-  urgency: z.enum(["low", "normal", "high", "urgent"]),
-  topic: z.string().describe("A few words naming the subject of the email."),
-  reason: z.string().describe("One short sentence explaining the chosen route."),
-  route: z.enum(["bugTrack", "docSearch", "draftReply"]),
-});
+// Types
+import type { EmailAgentStateType } from "../state.js";
 
-/** Classify Intent: categorize urgency + topic and decide the next action. */
-export async function classifyIntent(
-  state: EmailStateType,
-): Promise<Partial<EmailStateType>> {
-  if (!state.email) throw new Error("classifyIntent requires an email in state.");
+type RouteTarget = "docSearch" | "bugTrack" | "draftReply";
 
-  const model = getChatModel().withStructuredOutput(classificationSchema, {
-    name: "classify_email",
+/**
+ * Classifies email intent with structured output and routes to the next node.
+ *
+ * @param state - Current graph state.
+ */
+export const classifyIntent = async (
+  state: EmailAgentStateType,
+): Promise<Command<RouteTarget | typeof END>> => {
+  if (!state.emailContent) {
+    return new Command({ goto: END, update: { status: "skipped_no_email" } });
+  }
+
+  const model = getChatModel().withStructuredOutput(EmailClassificationSchema);
+
+  const classification = await model.invoke(`
+Analyze this customer email and classify it:
+
+Subject: ${state.subject ?? "(unknown)"}
+From: ${state.senderEmail ?? "(unknown)"}
+Email:
+${state.emailContent}
+
+Provide intent, urgency, topic, and a one-line summary.
+`);
+
+  let goto: RouteTarget = "draftReply";
+
+  if (
+    classification.intent === "question" ||
+    classification.intent === "feature"
+  ) {
+    goto = "docSearch";
+  } else if (classification.intent === "bug") {
+    goto = "bugTrack";
+  }
+
+  return new Command({
+    update: {
+      classification,
+      status: "classified",
+      steps: [`Classified: ${classification.intent} (${classification.urgency})`],
+    },
+    goto,
   });
-
-  const classification = await model.invoke([
-    { role: "system", content: CLASSIFY_SYSTEM },
-    { role: "user", content: classifyHuman(state.email) },
-  ]);
-
-  return {
-    classification,
-    status: [`Classified: ${classification.topic} -> ${classification.route} (${classification.urgency})`],
-  };
-}
+};

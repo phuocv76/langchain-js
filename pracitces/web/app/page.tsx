@@ -1,169 +1,189 @@
 "use client";
 
-import { useState } from "react";
+// Libs for third party
 import { useCoAgent, useLangGraphInterrupt } from "@copilotkit/react-core";
 import { CopilotSidebar } from "@copilotkit/react-ui";
+import { useState } from "react";
+
+interface InterruptPayload {
+  emailId?: string;
+  subject?: string;
+  originalEmail?: string;
+  draftResponse?: string;
+  urgency?: string;
+  intent?: string;
+  action?: string;
+}
 
 interface EmailAgentState {
-  email?: { from: string; subject: string; body: string } | null;
-  classification?: { urgency: string; topic: string; route: string; reason: string } | null;
-  docHits?: { source: string; content: string }[];
-  issueRef?: { number: number; url: string; title: string } | null;
-  draft?: string;
-  sent?: boolean;
-  status?: string[];
-}
-
-interface InterruptValue {
-  draft: string;
-  email?: { from: string; subject: string } | null;
-}
-
-function ReviewCard({
-  value,
-  resolve,
-}: {
-  value: InterruptValue;
-  resolve: (resolution: string) => void;
-}) {
-  const [feedback, setFeedback] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const send = (resolution: { action: string; feedback?: string }) => {
-    setSubmitted(true);
-    resolve(JSON.stringify(resolution));
+  status?: string;
+  subject?: string;
+  senderEmail?: string;
+  emailContent?: string;
+  responseText?: string;
+  classification?: {
+    intent?: string;
+    urgency?: string;
+    topic?: string;
+    summary?: string;
   };
-
-  return (
-    <div className="review">
-      <h2>Review the drafted reply</h2>
-      <p className="draft">{value.draft}</p>
-      <textarea
-        value={feedback}
-        onChange={(e) => setFeedback(e.target.value)}
-        placeholder="Optional: describe changes to request a revision"
-        disabled={submitted}
-      />
-      <div className="actions">
-        <button className="btn primary" disabled={submitted} onClick={() => send({ action: "approve" })}>
-          Approve & Send
-        </button>
-        <button
-          className="btn"
-          disabled={submitted || !feedback.trim()}
-          onClick={() => send({ action: "edit", feedback })}
-        >
-          Request changes
-        </button>
-        <button className="btn" disabled={submitted} onClick={() => send({ action: "reject" })}>
-          Reject
-        </button>
-      </div>
-    </div>
-  );
 }
 
-function StatePanel({ state }: { state: EmailAgentState }) {
-  const { email, classification, docHits, issueRef, draft, sent, status } = state;
+const STATUS_LABELS: Record<string, string> = {
+  email_loaded: "Email loaded",
+  classified: "Classified",
+  draft_ready: "Draft ready — review required",
+  approved_by_human: "Approved — sending",
+  reply_sent: "Reply sent (marked read in Gmail)",
+  reply_sent_mark_unread: "Reply sent (could not mark read — missing email id)",
+  rejected_by_human: "Reply rejected",
+  no_unread_email: "No unread inbox email",
+  send_skipped_missing_fields: "Send skipped — missing fields",
+  skipped_no_email: "Skipped — no email content",
+};
 
-  return (
-    <>
-      <div className="card">
-        <h2>Email</h2>
-        {email ? (
-          <div>
-            <div>
-              <strong>{email.subject}</strong>
-            </div>
-            <div className="empty">{email.from}</div>
+/** Maps internal status codes to user-facing labels. */
+const formatStatus = (status: string | undefined): string => {
+  if (!status) {
+    return "idle";
+  }
+  return STATUS_LABELS[status] ?? status;
+};
+
+/** Renders human-in-the-loop review for draft email replies. */
+const EmailReviewInterrupt = (): null => {
+  const [editedDraft, setEditedDraft] = useState("");
+
+  useLangGraphInterrupt<InterruptPayload>({
+    render: ({ event, resolve }) => {
+      const value = event.value;
+      const draft = editedDraft || value.draftResponse || "";
+
+      return (
+        <div className="interrupt-card">
+          <h3>Review email reply</h3>
+          <p className="muted">{value.action}</p>
+          <dl>
+            <dt>Subject</dt>
+            <dd>{value.subject ?? "(unknown)"}</dd>
+            <dt>Intent</dt>
+            <dd>
+              {value.intent ?? "unknown"} / {value.urgency ?? "medium"}
+            </dd>
+          </dl>
+          <details open>
+            <summary>Original email</summary>
+            <pre className="content-panel">
+              {value.originalEmail ?? "(empty)"}
+            </pre>
+          </details>
+          <label htmlFor="draft-editor">Draft reply</label>
+          <textarea
+            id="draft-editor"
+            className="content-panel"
+            rows={8}
+            value={draft}
+            onChange={(event) => setEditedDraft(event.target.value)}
+          />
+          <div className="actions">
+            <button
+              type="button"
+              onClick={() => resolve(JSON.stringify({ action: "approve" }))}
+            >
+              Approve
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                resolve(
+                  JSON.stringify({
+                    action: "edit",
+                    editedResponse: draft,
+                  }),
+                )
+              }
+            >
+              Send edited
+            </button>
+            <button
+              type="button"
+              className="danger"
+              onClick={() => resolve(JSON.stringify({ action: "reject" }))}
+            >
+              Reject
+            </button>
           </div>
-        ) : (
-          <p className="empty">No email read yet.</p>
-        )}
-      </div>
-
-      {classification && (
-        <div className="card">
-          <h2>Classification</h2>
-          <span className="pill">{classification.urgency}</span>
-          <span className="pill">{classification.topic}</span>
-          <span className="pill">{classification.route}</span>
-          <p className="empty" style={{ marginBottom: 0 }}>
-            {classification.reason}
-          </p>
         </div>
-      )}
+      );
+    },
+  });
 
-      {issueRef && (
-        <div className="card">
-          <h2>Filed issue</h2>
-          <a href={issueRef.url} target="_blank" rel="noreferrer">
-            #{issueRef.number} {issueRef.title}
-          </a>
-        </div>
-      )}
+  return null;
+};
 
-      {docHits && docHits.length > 0 && (
-        <div className="card">
-          <h2>Knowledge base</h2>
-          <ul className="steps">
-            {docHits.map((d, i) => (
-              <li key={i}>{d.source}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {draft && (
-        <div className="card">
-          <h2>Draft reply {sent ? "(sent)" : ""}</h2>
-          <p className="draft">{draft}</p>
-        </div>
-      )}
-
-      {status && status.length > 0 && (
-        <div className="card">
-          <h2>Workflow steps</h2>
-          <ul className="steps">
-            {status.map((s, i) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </>
-  );
-}
-
-export default function Page() {
+/** Live email-agent state panel and chat sidebar. */
+const EmailAgentPanel = (): React.JSX.Element => {
   const { state } = useCoAgent<EmailAgentState>({
     name: "emailAgent",
     initialState: {},
   });
 
-  useLangGraphInterrupt<InterruptValue>({
-    render: ({ event, resolve }) => <ReviewCard value={event.value} resolve={resolve} />,
-  });
-
   return (
     <main className="page">
-      <h1 className="title">Email Agent</h1>
-      <p className="subtitle">
-        Ask the assistant to &ldquo;process my inbox&rdquo;. It reads the latest unread email,
-        classifies it, searches docs or files a bug, drafts a reply, and pauses here for your
-        approval before sending.
-      </p>
+      <section className="hero">
+        <h1>Email Agent</h1>
+        <p>
+          LangGraph workflow that reads Gmail, classifies intent, searches docs,
+          drafts a reply, and pauses for human review before sending.
+        </p>
+      </section>
 
-      <StatePanel state={state ?? {}} />
+      <section className="status-card">
+        <h2>Agent state</h2>
+        <dl>
+          <dt>Status</dt>
+          <dd>{formatStatus(state.status)}</dd>
+          <dt>Subject</dt>
+          <dd>{state.subject ?? "—"}</dd>
+          <dt>From</dt>
+          <dd>{state.senderEmail ?? "—"}</dd>
+          <dt>Intent</dt>
+          <dd>
+            {state.classification
+              ? `${state.classification.intent} (${state.classification.urgency})`
+              : "—"}
+          </dd>
+        </dl>
 
+        {state.emailContent ? (
+          <>
+            <h3>Original email</h3>
+            <pre className="content-panel">{state.emailContent}</pre>
+          </>
+        ) : null}
+
+        {state.responseText ? (
+          <>
+            <h3>Draft reply</h3>
+            <pre className="content-panel">{state.responseText}</pre>
+          </>
+        ) : null}
+      </section>
+
+      <EmailReviewInterrupt />
       <CopilotSidebar
         defaultOpen
-        clickOutsideToClose={false}
         labels={{
           title: "Email Agent",
-          initial: "Hi! Tell me to \"process my inbox\" and I'll handle the latest unread email.",
+          initial:
+            "Process the latest unread email or ask me to run the workflow.",
         }}
       />
     </main>
   );
-}
+};
+
+/** Home page for the CopilotKit email agent UI. */
+const HomePage = (): React.JSX.Element => <EmailAgentPanel />;
+
+export default HomePage;

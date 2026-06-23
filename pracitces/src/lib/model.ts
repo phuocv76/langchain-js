@@ -1,13 +1,29 @@
+// Libs for third party
 import { ChatOpenAI } from "@langchain/openai";
-import { requireEnv } from "./env.js";
+
+/** Shared chat model configured from environment variables. */
+let cachedModel: ChatOpenAI | undefined;
 
 /**
- * Shared chat model factory so every exercise reads the key/model the same way.
+ * Returns a singleton ChatOpenAI instance.
+ *
+ * @throws When `OPENAI_API_KEY` is missing.
  */
-export function getChatModel(overrides: Partial<{ model: string; temperature: number }> = {}) {
-  requireEnv("OPENAI_API_KEY");
-  return new ChatOpenAI({
-    model: overrides.model ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-    temperature: overrides.temperature ?? 0,
+export const getChatModel = (): ChatOpenAI => {
+  if (cachedModel) {
+    return cachedModel;
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Set OPENAI_API_KEY in .env before running exercises.");
+  }
+
+  cachedModel = new ChatOpenAI({
+    apiKey,
+    model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+    temperature: 0.2,
   });
-}
+
+  return cachedModel;
+};

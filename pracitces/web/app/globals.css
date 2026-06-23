@@ -1,136 +1,183 @@
 :root {
-  --bg: #0b1120;
-  --surface: #111a2e;
-  --border: #1e2a44;
-  --text: #e6edf7;
-  --muted: #8aa0c0;
-  --accent: #4f8cff;
+  color-scheme: dark;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  line-height: 1.5;
+
+  --bg-page: #0f172a;
+  --bg-card: #1e293b;
+  --bg-inset: #020617;
+  --border: #475569;
+  --border-strong: #64748b;
+  --text-primary: #f8fafc;
+  --text-body: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #2563eb;
+  --danger: #dc2626;
+
+  background: var(--bg-page);
+  color: var(--text-body);
 }
 
 * {
   box-sizing: border-box;
 }
 
-html,
 body {
   margin: 0;
-  padding: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  min-height: 100vh;
+  background: var(--bg-page);
+  color: var(--text-body);
 }
 
 .page {
-  max-width: 760px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 32px 24px 96px;
+  padding: 2rem 1.5rem 6rem;
 }
 
-.title {
-  font-size: 1.6rem;
-  margin: 0 0 4px;
+.hero h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  color: var(--text-primary);
 }
 
-.subtitle {
-  color: var(--muted);
-  margin: 0 0 24px;
+.hero p,
+.muted {
+  color: var(--text-muted);
 }
 
-.card {
-  background: var(--surface);
+.status-card,
+.interrupt-card {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 16px 18px;
-  margin-bottom: 16px;
+  background: var(--bg-card);
+  color: var(--text-body);
 }
 
-.card h2 {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  margin: 0 0 10px;
+.status-card h2,
+.status-card h3,
+.interrupt-card h3 {
+  margin: 1rem 0 0.5rem;
+  color: var(--text-primary);
 }
 
-.steps {
-  list-style: none;
-  padding: 0;
+.status-card h2:first-child,
+.interrupt-card h3:first-child {
+  margin-top: 0;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 0.35rem 1rem;
+}
+
+dt {
+  color: var(--text-muted);
+}
+
+dd {
   margin: 0;
+  color: var(--text-primary);
 }
 
-.steps li {
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--border);
-  font-size: 0.92rem;
-}
-
-.steps li:last-child {
-  border-bottom: none;
-}
-
-.draft {
-  white-space: pre-wrap;
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-
-.pill {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: var(--border);
-  font-size: 0.78rem;
-  margin-right: 6px;
-}
-
-.review {
-  border: 1px solid var(--accent);
-  border-radius: 12px;
-  padding: 14px;
-  background: rgba(79, 140, 255, 0.08);
-}
-
-.review textarea {
-  width: 100%;
-  min-height: 64px;
-  margin: 10px 0;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px;
-  font: inherit;
-}
-
-.review .actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-button.btn {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  border-radius: 8px;
-  padding: 8px 14px;
-  cursor: pointer;
-  font: inherit;
-}
-
-button.btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #051124;
+label {
+  display: block;
+  margin-top: 1rem;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
-button.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.content-panel,
+pre,
+textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  padding: 0.75rem;
+  font: inherit;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 
-.empty {
-  color: var(--muted);
-  font-style: italic;
+textarea {
+  resize: vertical;
+  margin-top: 0.5rem;
+}
+
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button.danger {
+  background: var(--danger);
+}
+
+details {
+  margin: 1rem 0;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+/* CopilotKit sidebar uses its own theme — keep review card readable there too. */
+[class*="copilotKit"],
+[class*="CopilotKit"],
+.copilotKitSidebar {
+  --text-primary: #f8fafc;
+  --text-body: #e2e8f0;
+  --text-muted: #94a3b8;
+}
+
+[class*="copilotKit"] .interrupt-card,
+[class*="CopilotKit"] .interrupt-card,
+.copilotKitSidebar .interrupt-card {
+  background: var(--bg-card);
+  color: var(--text-body);
+}
+
+[class*="copilotKit"] .interrupt-card dd,
+[class*="CopilotKit"] .interrupt-card dd,
+[class*="copilotKit"] .interrupt-card pre,
+[class*="CopilotKit"] .interrupt-card pre,
+[class*="copilotKit"] .interrupt-card textarea,
+[class*="CopilotKit"] .interrupt-card textarea,
+[class*="copilotKit"] .interrupt-card label,
+[class*="CopilotKit"] .interrupt-card label,
+[class*="copilotKit"] .interrupt-card summary,
+[class*="CopilotKit"] .interrupt-card summary {
+  color: var(--text-primary);
 }

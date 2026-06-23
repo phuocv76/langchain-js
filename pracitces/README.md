@@ -1,84 +1,61 @@
-# LangChain + LangGraph Practices
+# Email Agent Practice
 
-TypeScript playground for practicing [LangChain.js](https://js.langchain.com/) and
-[LangGraph.js](https://langchain-ai.github.io/langgraphjs/) with OpenAI.
+One LangChain + LangGraph practice project: a TypeScript agent that **reads Gmail**,
+classifies intent, searches local docs or files a GitHub issue, **drafts a reply**,
+pauses for **human review**, then **sends** the response. A Next.js + CopilotKit UI
+runs the same graph with in-chat review.
 
 ## Setup
 
 ```bash
-npm install
-cp .env.example .env   # then add your OPENAI_API_KEY
+pnpm install
+cp .env.example .env   # fill in keys (see below)
+pnpm gmail:token       # one-time: mint GOOGLE_REFRESH_TOKEN
 ```
 
-## Run an exercise
+Required in `.env`: `OPENAI_API_KEY`, Gmail OAuth vars, `GITHUB_TOKEN`, `GITHUB_REPO`.
+
+## Run
+
+**Recommended — agent server + web UI (human review in browser):**
 
 ```bash
-npm run exercise src/exercises/01-hello-chain.ts
-npm run exercise src/exercises/02-hello-graph.ts
+pnpm dev
+# LangGraph API  → http://localhost:2024
+# Next.js + UI   → http://localhost:3000
 ```
 
-## Create a new exercise
+**Terminal-only (interactive review in the shell):**
 
 ```bash
-npm run new -- chain "structured output"
-npm run new -- graph "tool calling agent"
+pnpm cli
 ```
 
-This generates a numbered file in `src/exercises/` and prints the run command.
-
-## Email Agent (Read & Reply)
-
-A complete LangGraph workflow that reads Gmail, classifies intent, searches a
-local knowledge base or files a GitHub issue, drafts a reply, pauses for human
-review, and sends. Built in three phases:
-
-1. Full workflow (auto-approved review):
+Skip the review prompt in the terminal:
 
 ```bash
-npm run exercise src/exercises/03-email-workflow.ts
+AUTO_APPROVE=true pnpm cli
 ```
 
-2. Interrupts + memory (human-in-the-loop, resumable):
-
-```bash
-npm run exercise src/exercises/04-email-interrupts-memory.ts
-```
-
-3. CopilotKit web UI on top of a `langgraphjs dev` server:
-
-```bash
-npm run gmail:token     # one-time: mint GOOGLE_REFRESH_TOKEN
-npm run dev             # langgraph dev (2024) + Next.js app (3000)
-```
-
-Requires Gmail, GitHub, and OpenAI credentials in `.env` (see `.env.example`).
-
-> Note: `@langchain/langgraph-cli`'s dev server officially supports Node 20. On
-> Node 22+ the in-memory server may print its banner but never bind the port. If
-> `npm run dev:agent` doesn't come up at `http://localhost:2024`, switch to Node 20
-> (e.g. `nvm use 20`) or run it under WSL. The graph code itself is runtime-agnostic.
+> `@langchain/langgraph-cli` dev server officially supports Node 20. On Node 22+,
+> if port 2024 never binds, use `nvm use 20`.
 
 ## Layout
 
 ```
 src/
-  lib/          shared helpers (env loading, model factory)
-  exercises/    numbered practice exercises (NN-title.ts)
-  email-agent/  the email workflow graph
-    nodes/        read/classify/docSearch/bugTrack/draft/review/send
-    integrations/ gmail.ts, github.ts, doc-search.ts
-docs/           knowledge-base files for doc search
-web/            Next.js + CopilotKit UI (Phase 3)
-langgraph.json  exposes the graph as "emailAgent" for the dev server
+  main.ts         CLI entry (pnpm cli)
+  lib/            env + OpenAI model factory
+  email-agent/    LangGraph workflow
+    graph.ts        exports `graph` for dev server + `compileWithMemory()` for CLI
+    nodes/          read → classify → docSearch/bugTrack → draft → review → send
+    integrations/   gmail.ts, github.ts, doc-search.ts
+docs/             knowledge-base markdown for doc search
+web/              Next.js + CopilotKit UI
+langgraph.json    exposes graph as "emailAgent"
 scripts/
-  new-exercise.mjs     scaffolds a new exercise
-  get-gmail-token.mjs  Gmail OAuth helper
-  templates/           chain/graph starter templates
-.cursor/skills/
-  langchain-practice/  Cursor skill for this repo
+  get-gmail-token.mjs
+pnpm-workspace.yaml
 ```
 
-## Notes
-
-- Each exercise is a standalone script with its own `main()`.
-- The default model is `gpt-4o-mini`; override via `OPENAI_MODEL` in `.env`.
+Default model: `gpt-4o-mini` (`OPENAI_MODEL` in `.env`).

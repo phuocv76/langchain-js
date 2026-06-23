@@ -1,135 +1,174 @@
-import { google, type gmail_v1 } from "googleapis";
-import { requireEnv } from "../../lib/env.js";
-import type { ParsedEmail } from "../types.js";
+// Libs for third party
+import { google } from "googleapis";
 
-let cached: gmail_v1.Gmail | undefined;
+// Types
+import type { EmailMessage } from "../types.js";
 
-/** Build an authenticated Gmail client from the OAuth refresh token in .env. */
-export function getGmailClient(): gmail_v1.Gmail {
-  if (cached) return cached;
+let gmailClient: ReturnType<typeof google.gmail> | undefined;
 
-  const oauth2 = new google.auth.OAuth2(
-    requireEnv("GOOGLE_CLIENT_ID"),
-    requireEnv("GOOGLE_CLIENT_SECRET"),
-  );
-  oauth2.setCredentials({ refresh_token: requireEnv("GOOGLE_REFRESH_TOKEN") });
-
-  cached = google.gmail({ version: "v1", auth: oauth2 });
-  return cached;
-}
-
-function header(headers: gmail_v1.Schema$MessagePartHeader[] | undefined, name: string): string {
-  const match = headers?.find((h) => h.name?.toLowerCase() === name.toLowerCase());
-  return match?.value ?? "";
-}
-
-/** Recursively pull the first text/plain (fallback text/html) body out of a payload. */
-function extractBody(payload: gmail_v1.Schema$MessagePart | undefined): string {
-  if (!payload) return "";
-
-  const decode = (data?: string | null) =>
-    data ? Buffer.from(data, "base64url").toString("utf8") : "";
-
-  if (payload.mimeType === "text/plain" && payload.body?.data) {
-    return decode(payload.body.data);
+/** Returns a lazily constructed Gmail API client. */
+const getGmailClient = () => {
+  if (gmailClient) {
+    return gmailClient;
   }
 
-  if (payload.parts?.length) {
-    const plain = payload.parts.find((p) => p.mimeType === "text/plain");
-    if (plain?.body?.data) return decode(plain.body.data);
-    for (const part of payload.parts) {
-      const nested = extractBody(part);
-      if (nested) return nested;
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error(
+      "Gmail credentials missing. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in .env.",
+    );
+  }
+
+  const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2.setCredentials({ refresh_token: refreshToken });
+  gmailClient = google.gmail({ version: "v1", auth: oauth2 });
+  return gmailClient;
+};
+
+/** Decodes a Gmail API message body part. */
+const decodeBody = (data?: string | null): string => {
+  if (!data) {
+    return "";
+  }
+  return Buffer.from(data, "base64url").toString("utf8");
+};
+
+/** Extracts plain-text content from a Gmail message payload. */
+const extractPlainText = (payload: {
+  body?: { data?: string | null };
+  parts?: Array<{
+    mimeType?: string | null;
+    body?: { data?: string | null };
+    parts?: unknown[];
+  }>;
+}): string => {
+  if (payload.body?.data) {
+    return decodeBody(payload.body.data);
+  }
+
+  for (const part of payload.parts ?? []) {
+    if (part.mimeType === "text/plain" && part.body?.data) {
+      return decodeBody(part.body.data);
+    }
+    if (part.parts?.length) {
+      const nested = extractPlainText(part as typeof payload);
+      if (nested) {
+        return nested;
+      }
     }
   }
 
-  if (payload.body?.data) return decode(payload.body.data);
   return "";
-}
+};
 
-function toParsedEmail(message: gmail_v1.Schema$Message): ParsedEmail {
-  const headers = message.payload?.headers;
-  return {
-    id: message.id ?? "",
-    threadId: message.threadId ?? "",
-    rfcMessageId: header(headers, "Message-Id"),
-    from: header(headers, "From"),
-    to: header(headers, "To"),
-    subject: header(headers, "Subject"),
-    body: extractBody(message.payload).trim(),
-    snippet: message.snippet ?? "",
-  };
-}
+/** Reads a header value from a Gmail message. */
+const getHeader = (
+  headers: Array<{ name?: string | null; value?: string | null }> | undefined,
+  name: string,
+): string =>
+  headers?.find((header) => header.name?.toLowerCase() === name.toLowerCase())
+    ?.value ?? "";
 
-/** Fetch the most recent unread message from the inbox, or null if none. */
-export async function fetchLatestUnread(): Promise<ParsedEmail | null> {
+/**
+ * Fetches an email by ID or the latest unread message.
+ *
+ * @param emailId - Gmail message ID; when omitted, uses the latest unread.
+ * @returns Parsed email payload, or null if none found.
+ */
+export const fetchTargetEmail = async (
+  emailId?: string,
+): Promise<EmailMessage | null> => {
   const gmail = getGmailClient();
-  const userId = process.env.GMAIL_USER || "me";
+  const userId = process.env.GMAIL_USER ?? "me";
 
-  const list = await gmail.users.messages.list({
-    userId,
-    q: "is:unread in:inbox",
-    maxResults: 1,
-  });
-
-  const id = list.data.messages?.[0]?.id;
-  if (!id) return null;
-
-  const full = await gmail.users.messages.get({ userId, id, format: "full" });
-  return toParsedEmail(full.data);
-}
-
-/** Fetch a specific message by id. */
-export async function fetchEmailById(id: string): Promise<ParsedEmail> {
-  const gmail = getGmailClient();
-  const userId = process.env.GMAIL_USER || "me";
-  const full = await gmail.users.messages.get({ userId, id, format: "full" });
-  return toParsedEmail(full.data);
-}
-
-/** Mark a message as read (remove the UNREAD label). */
-export async function markAsRead(id: string): Promise<void> {
-  const gmail = getGmailClient();
-  const userId = process.env.GMAIL_USER || "me";
-  await gmail.users.messages.modify({
-    userId,
-    id,
-    requestBody: { removeLabelIds: ["UNREAD"] },
-  });
-}
-
-export interface SendReplyInput {
-  original: ParsedEmail;
-  body: string;
-}
-
-/** Send a plain-text reply on the same thread as the original email. */
-export async function sendReply({ original, body }: SendReplyInput): Promise<string> {
-  const gmail = getGmailClient();
-  const userId = process.env.GMAIL_USER || "me";
-
-  const to = original.from;
-  const subject = original.subject.startsWith("Re:")
-    ? original.subject
-    : `Re: ${original.subject}`;
-
-  const headers = [
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    "Content-Type: text/plain; charset=utf-8",
-  ];
-  if (original.rfcMessageId) {
-    headers.push(`In-Reply-To: ${original.rfcMessageId}`);
-    headers.push(`References: ${original.rfcMessageId}`);
+  let messageId = emailId;
+  if (!messageId) {
+    const list = await gmail.users.messages.list({
+      userId,
+      maxResults: 1,
+      q: "is:unread in:inbox",
+    });
+    messageId = list.data.messages?.[0]?.id ?? undefined;
   }
 
-  const raw = Buffer.from(`${headers.join("\r\n")}\r\n\r\n${body}`)
-    .toString("base64url");
+  if (!messageId) {
+    return null;
+  }
 
-  const res = await gmail.users.messages.send({
+  const message = await gmail.users.messages.get({
     userId,
-    requestBody: { raw, threadId: original.threadId },
+    id: messageId,
+    format: "full",
   });
 
-  return res.data.id ?? "";
-}
+  const headers = message.data.payload?.headers;
+  const body = extractPlainText(message.data.payload ?? {});
+
+  return {
+    id: message.data.id ?? messageId,
+    threadId: message.data.threadId ?? messageId,
+    from: getHeader(headers, "From"),
+    subject: getHeader(headers, "Subject") || "(no subject)",
+    body: body.trim() || "(empty body)",
+  };
+};
+
+/**
+ * Sends a reply in the same Gmail thread.
+ *
+ * @param params - Reply content and thread metadata.
+ */
+export const sendEmailReply = async (params: {
+  readonly threadId: string;
+  readonly to: string;
+  readonly subject: string;
+  readonly body: string;
+}): Promise<void> => {
+  const gmail = getGmailClient();
+  const userId = process.env.GMAIL_USER ?? "me";
+
+  const subject = params.subject.startsWith("Re:")
+    ? params.subject
+    : `Re: ${params.subject}`;
+
+  const raw = [
+    `To: ${params.to}`,
+    `Subject: ${subject}`,
+    "Content-Type: text/plain; charset=utf-8",
+    "",
+    params.body,
+  ].join("\r\n");
+
+  const encoded = Buffer.from(raw)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
+  await gmail.users.messages.send({
+    userId,
+    requestBody: {
+      raw: encoded,
+      threadId: params.threadId,
+    },
+  });
+};
+
+/**
+ * Marks a Gmail message as read.
+ *
+ * @param emailId - Gmail message ID.
+ */
+export const markEmailAsRead = async (emailId: string): Promise<void> => {
+  const gmail = getGmailClient();
+  const userId = process.env.GMAIL_USER ?? "me";
+
+  await gmail.users.messages.modify({
+    userId,
+    id: emailId,
+    requestBody: { removeLabelIds: ["UNREAD"] },
+  });
+};

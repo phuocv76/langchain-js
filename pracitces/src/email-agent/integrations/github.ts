@@ -1,53 +1,57 @@
+// Libs for third party
 import { Octokit } from "@octokit/rest";
-import { requireEnv } from "../../lib/env.js";
-import type { IssueRef } from "../types.js";
 
-let cached: Octokit | undefined;
+let octokitClient: Octokit | undefined;
 
-function getOctokit(): Octokit {
-  if (!cached) cached = new Octokit({ auth: requireEnv("GITHUB_TOKEN") });
-  return cached;
-}
-
-function repoParts(): { owner: string; repo: string } {
-  const repo = requireEnv("GITHUB_REPO");
-  const [owner, name] = repo.split("/");
-  if (!owner || !name) {
-    throw new Error(`GITHUB_REPO must be "owner/repo", got "${repo}".`);
+/** Returns a lazily constructed GitHub REST client. */
+const getOctokit = (): Octokit => {
+  if (octokitClient) {
+    return octokitClient;
   }
-  return { owner, repo: name };
-}
 
-export interface CreateIssueInput {
-  title: string;
-  body: string;
-  labels?: string[];
-}
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error("Set GITHUB_TOKEN in .env before filing GitHub issues.");
+  }
 
-/** Create a GitHub issue and return a reference to it. */
-export async function createIssue({ title, body, labels }: CreateIssueInput): Promise<IssueRef> {
+  octokitClient = new Octokit({ auth: token });
+  return octokitClient;
+};
+
+/** Parses `owner/repo` from `GITHUB_REPO`. */
+const getRepo = (): { owner: string; repo: string } => {
+  const raw = process.env.GITHUB_REPO;
+  if (!raw?.includes("/")) {
+    throw new Error('Set GITHUB_REPO in "owner/repo" form.');
+  }
+
+  const [owner, repo] = raw.split("/");
+  return { owner, repo };
+};
+
+/**
+ * Creates a GitHub issue for a reported bug email.
+ *
+ * @param params - Issue title and body.
+ * @returns Issue number and URL.
+ */
+export const createBugIssue = async (params: {
+  readonly title: string;
+  readonly body: string;
+}): Promise<{ number: number; url: string }> => {
   const octokit = getOctokit();
-  const { owner, repo } = repoParts();
+  const { owner, repo } = getRepo();
 
-  const res = await octokit.issues.create({ owner, repo, title, body, labels });
-  return {
-    number: res.data.number,
-    url: res.data.html_url,
-    title: res.data.title,
-  };
-}
-
-/** Search existing open issues by a free-text query (used to avoid duplicates). */
-export async function findExistingIssue(query: string): Promise<IssueRef | null> {
-  const octokit = getOctokit();
-  const { owner, repo } = repoParts();
-
-  const res = await octokit.search.issuesAndPullRequests({
-    q: `repo:${owner}/${repo} is:issue is:open in:title ${query}`,
-    per_page: 1,
+  const response = await octokit.issues.create({
+    owner,
+    repo,
+    title: params.title,
+    body: params.body,
+    labels: ["bug", "email-agent"],
   });
 
-  const hit = res.data.items[0];
-  if (!hit) return null;
-  return { number: hit.number, url: hit.html_url, title: hit.title };
-}
+  return {
+    number: response.data.number,
+    url: response.data.html_url,
+  };
+};
