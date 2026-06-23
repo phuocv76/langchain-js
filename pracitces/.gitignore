@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+
+# Next.js (web/)
+.next/
+web/.next/
+web/out/
+next-env.d.ts
+
+# LangGraph API
+.langgraph_api
