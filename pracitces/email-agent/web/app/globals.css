@@ -7,23 +7,32 @@
     sans-serif;
   line-height: 1.5;
 
-  --bg-page: #0f172a;
-  --bg-card: #1e293b;
-  --bg-inset: #020617;
-  --border: #475569;
-  --border-strong: #64748b;
-  --text-primary: #f8fafc;
-  --text-body: #e2e8f0;
-  --text-muted: #94a3b8;
-  --accent: #2563eb;
+  --bg-page: #212121;
+  --bg-sidebar: #171717;
+  --bg-sidebar-hover: #2f2f2f;
+  --bg-sidebar-active: #343434;
+  --bg-card: #2f2f2f;
+  --bg-inset: #1a1a1a;
+  --border: #ffffff1a;
+  --border-strong: #ffffff26;
+  --text-primary: #ececec;
+  --text-body: #d1d1d1;
+  --text-muted: #9b9b9b;
+  --accent: #ffffff;
+  --accent-text: #171717;
+  --success: #10b981;
+  --success-text: #ffffff;
   --danger: #dc2626;
-
-  background: var(--bg-page);
-  color: var(--text-body);
+  --danger-muted: #7f1d1d;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 body {
@@ -33,151 +42,406 @@ body {
   color: var(--text-body);
 }
 
-.page {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem 6rem;
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
-.hero h1 {
-  margin: 0 0 0.5rem;
-  font-size: 2rem;
+.chat-sidebar {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  width: 260px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+}
+
+.chat-sidebar__top {
+  padding: 0.75rem;
+}
+
+.new-chat-button {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.new-chat-button:hover {
+  background: var(--bg-sidebar-hover);
+}
+
+.chat-sidebar__history {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 0.5rem 1rem;
+  overflow: hidden;
+}
+
+.chat-sidebar__section-label {
+  margin: 0.5rem 0.75rem 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.chat-sidebar__hint {
+  margin: 0.35rem 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.chat-sidebar__hint--warn {
+  color: #fbbf24;
+}
+
+.thread-list {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.thread-item {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.15rem;
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--text-body);
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.thread-item:hover {
+  background: var(--bg-sidebar-hover);
+}
+
+.thread-item--active {
+  background: var(--bg-sidebar-active);
   color: var(--text-primary);
 }
 
-.hero p,
+.thread-item__label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-page);
+}
+
+.chat-main__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-main__header h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.chat-main__surface {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chat-main__surface [data-copilotkit] {
+  flex: 1;
+  min-height: 0;
+}
+
 .muted {
   color: var(--text-muted);
 }
 
-.status-card,
+/* Human-in-the-loop review card (inside CopilotKit chat). */
 .interrupt-card {
-  margin-top: 1.5rem;
+  margin: 0.75rem 0 0;
   padding: 1.25rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: #2a2a2a;
   color: var(--text-body);
 }
 
-.status-card h2,
-.status-card h3,
-.interrupt-card h3 {
-  margin: 1rem 0 0.5rem;
+.interrupt-card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.interrupt-card__title {
+  margin: 0 0 0.25rem;
   color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
-.status-card h2:first-child,
-.interrupt-card h3:first-child {
-  margin-top: 0;
-}
-
-dl {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 0.35rem 1rem;
-}
-
-dt {
+.interrupt-card__subtitle {
+  margin: 0;
   color: var(--text-muted);
+  font-size: 0.85rem;
 }
 
-dd {
+.interrupt-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.interrupt-card__badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #3d3d3d;
+  color: var(--text-primary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+}
+
+.interrupt-card__badge--high {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
+.interrupt-card__badge--medium {
+  background: #78350f;
+  color: #fde68a;
+}
+
+.interrupt-card__badge--low {
+  background: #14532d;
+  color: #bbf7d0;
+}
+
+.interrupt-card__meta {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0 0 1rem;
+}
+
+.interrupt-card__meta dt {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.interrupt-card__meta dd {
   margin: 0;
   color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 500;
 }
 
-label {
+.interrupt-card__label {
   display: block;
-  margin-top: 1rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
-.content-panel,
-pre,
-textarea {
+.interrupt-card__panel,
+.interrupt-card__textarea {
   width: 100%;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid var(--border-strong);
   background: var(--bg-inset);
   color: var(--text-primary);
-  padding: 0.75rem;
+  padding: 0.85rem;
   font: inherit;
+  font-size: 0.9rem;
   line-height: 1.6;
   white-space: pre-wrap;
 }
 
-textarea {
+.interrupt-card__textarea {
   resize: vertical;
-  margin-top: 0.5rem;
+  min-height: 140px;
+  margin-bottom: 1rem;
 }
 
-textarea::placeholder {
+.interrupt-card__details {
+  margin: 0 0 1rem;
+}
+
+.interrupt-card__details summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+  user-select: none;
 }
 
-.actions {
+.interrupt-card__details summary:hover {
+  color: var(--text-primary);
+}
+
+.interrupt-card__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  gap: 0.6rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border);
 }
 
-button {
-  border: 0;
-  border-radius: 8px;
-  padding: 0.55rem 1rem;
-  background: var(--accent);
-  color: #ffffff;
+.interrupt-card__btn {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.55rem 1.15rem;
+  font: inherit;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    filter 0.15s ease;
 }
 
-button:hover {
+.interrupt-card__btn--primary {
+  background: var(--text-primary);
+  color: var(--accent-text);
+  border-color: var(--text-primary);
+}
+
+.interrupt-card__btn--primary:hover {
   filter: brightness(1.08);
 }
 
-button.danger {
-  background: var(--danger);
-}
-
-details {
-  margin: 1rem 0;
-}
-
-summary {
-  cursor: pointer;
-  font-weight: 600;
+.interrupt-card__btn--secondary {
+  background: transparent;
   color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  border-color: var(--border-strong);
 }
 
-/* CopilotKit sidebar uses its own theme — keep review card readable there too. */
-[class*="copilotKit"],
-[class*="CopilotKit"],
-.copilotKitSidebar {
-  --text-primary: #f8fafc;
-  --text-body: #e2e8f0;
-  --text-muted: #94a3b8;
+.interrupt-card__btn--secondary:hover {
+  background: #3d3d3d;
 }
 
-[class*="copilotKit"] .interrupt-card,
-[class*="CopilotKit"] .interrupt-card,
-.copilotKitSidebar .interrupt-card {
-  background: var(--bg-card);
+.interrupt-card__btn--danger {
+  background: transparent;
+  color: #fca5a5;
+  border-color: #991b1b;
+  margin-left: auto;
+}
+
+.interrupt-card__btn--danger:hover {
+  background: var(--danger-muted);
+  color: #ffffff;
+}
+
+/* CopilotKit chat theme overrides — keep review card readable. */
+[data-copilotkit] .interrupt-card,
+[data-copilotkit] .interrupt-card * {
+  box-sizing: border-box;
+}
+
+[data-copilotkit] .interrupt-card {
+  background: #2a2a2a;
   color: var(--text-body);
 }
 
-[class*="copilotKit"] .interrupt-card dd,
-[class*="CopilotKit"] .interrupt-card dd,
-[class*="copilotKit"] .interrupt-card pre,
-[class*="CopilotKit"] .interrupt-card pre,
-[class*="copilotKit"] .interrupt-card textarea,
-[class*="CopilotKit"] .interrupt-card textarea,
-[class*="copilotKit"] .interrupt-card label,
-[class*="CopilotKit"] .interrupt-card label,
-[class*="copilotKit"] .interrupt-card summary,
-[class*="CopilotKit"] .interrupt-card summary {
+[data-copilotkit] .interrupt-card__title,
+[data-copilotkit] .interrupt-card__meta dd,
+[data-copilotkit] .interrupt-card__panel,
+[data-copilotkit] .interrupt-card__textarea,
+[data-copilotkit] .interrupt-card__label {
   color: var(--text-primary);
+}
+
+[data-copilotkit] .interrupt-card__btn--primary {
+  background: #ececec;
+  color: #171717;
+  border-color: #ececec;
+}
+
+[data-copilotkit] .interrupt-card__btn--secondary {
+  background: #3d3d3d;
+  color: #f3f3f3;
+  border-color: #525252;
+}
+
+[data-copilotkit] .interrupt-card__btn--secondary:hover {
+  background: #4a4a4a;
+}
+
+[data-copilotkit] .interrupt-card__btn--danger {
+  background: transparent;
+  color: #fca5a5;
+  border-color: #991b1b;
+}
+
+[data-copilotkit] .interrupt-card__btn--danger:hover {
+  background: #7f1d1d;
+  color: #ffffff;
+}
+
+@media (max-width: 480px) {
+  .interrupt-card__actions {
+    flex-direction: column;
+  }
+
+  .interrupt-card__btn--danger {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .chat-sidebar {
+    width: 100%;
+    max-height: 40vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
 }

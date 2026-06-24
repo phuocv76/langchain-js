@@ -7,6 +7,18 @@ runs the same graph with in-chat review.
 
 ## Setup
 
+Requires **Node.js 20+** and **pnpm 11.9.0** (pinned in `package.json`).
+
+If `pnpm install` fails with a missing CLI under `~/.pnpm/.tools`, activate the
+pinned version via Corepack first:
+
+```bash
+npm run setup        # corepack enable + pnpm@11.9.0
+pnpm install
+```
+
+Otherwise:
+
 ```bash
 pnpm install
 cp .env.example .env   # fill in keys (see below)

@@ -10,7 +10,7 @@
  * Run: pnpm cli
  */
 // Internal
-import "./lib/load-env.js";
+import "./lib/load-env";
 
 // Libs for third party
 import { Command, isInterrupted } from "@langchain/langgraph";
@@ -18,10 +18,11 @@ import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 
 // Internal
-import { compileWithMemory } from "./email-agent/graph.js";
+import { CLI, PLACEHOLDERS, REVIEW } from "./constants/messages";
+import { compileWithMemory } from "./email-agent/graph";
 
 // Types
-import type { ReviewDecision } from "./email-agent/types.js";
+import type { ReviewDecision } from "./email-agent/types";
 
 interface ReviewPayload {
   subject?: string;
@@ -35,7 +36,7 @@ interface ReviewPayload {
 /** Prints the persisted step trail from graph state. */
 const printSteps = (steps: string[] | undefined): void => {
   for (const line of steps ?? []) {
-    console.log(`- ${line}`);
+    console.log(`${CLI.STEP_PREFIX}${line}`);
   }
 };
 
@@ -45,17 +46,25 @@ const promptReviewDecision = async (
 ): Promise<ReviewDecision> => {
   const rl = createInterface({ input, output });
 
-  console.log("\n--- Human review (interrupt) ---");
-  console.log(payload.action ?? "Review this draft reply.");
-  console.log(`Subject: ${payload.subject ?? "(unknown)"}`);
+  console.log(CLI.HUMAN_REVIEW_HEADER);
+  console.log(payload.action ?? REVIEW.DEFAULT_PROMPT);
   console.log(
-    `Intent: ${payload.intent ?? "unknown"} / ${payload.urgency ?? "medium"}`,
+    `${CLI.SUBJECT_LABEL} ${payload.subject ?? PLACEHOLDERS.UNKNOWN}`,
   );
-  console.log("\nOriginal email:\n", payload.originalEmail ?? "(empty)");
-  console.log("\nDraft reply:\n", payload.draftResponse ?? "(empty)");
-  console.log("\nOptions: [a]pprove  [e]dit  [r]eject");
+  console.log(
+    `${CLI.INTENT_LABEL} ${payload.intent ?? PLACEHOLDERS.UNKNOWN_INTENT} / ${payload.urgency ?? PLACEHOLDERS.MEDIUM_URGENCY}`,
+  );
+  console.log(
+    CLI.ORIGINAL_EMAIL_HEADER,
+    payload.originalEmail ?? PLACEHOLDERS.EMPTY,
+  );
+  console.log(
+    CLI.DRAFT_REPLY_HEADER,
+    payload.draftResponse ?? PLACEHOLDERS.EMPTY,
+  );
+  console.log(CLI.OPTIONS);
 
-  const answer = (await rl.question("Choice (a/e/r): ")).trim().toLowerCase();
+  const answer = (await rl.question(CLI.CHOICE_PROMPT)).trim().toLowerCase();
   rl.close();
 
   if (answer.startsWith("r")) {
@@ -64,11 +73,12 @@ const promptReviewDecision = async (
 
   if (answer.startsWith("e")) {
     const editRl = createInterface({ input, output });
-    const feedback = await editRl.question(
-      "What should change? (draft will be regenerated)\n",
-    );
+    const feedback = await editRl.question(CLI.EDIT_FEEDBACK_PROMPT);
     editRl.close();
-    return { action: "edit", feedback: feedback.trim() || "Please improve the draft." };
+    return {
+      action: "edit",
+      feedback: feedback.trim() || PLACEHOLDERS.DEFAULT_EDIT_FEEDBACK,
+    };
   }
 
   return { action: "approve" };
@@ -90,7 +100,7 @@ const main = async (): Promise<void> => {
 
   while (isInterrupted(result)) {
     if (result.steps?.length) {
-      console.log("\n--- Steps so far ---");
+      console.log(CLI.STEPS_SO_FAR_HEADER);
       printSteps(result.steps);
     }
 
@@ -103,19 +113,22 @@ const main = async (): Promise<void> => {
     result = await graph.invoke(new Command({ resume }), config);
   }
 
-  console.log("\n--- Done ---");
-  console.log("Status:", result.status);
-  console.log("Subject:", result.subject);
-  console.log("Classification:", result.classification);
-  console.log("Reply sent:", result.responseText);
+  console.log(CLI.DONE_HEADER);
+  console.log(CLI.STATUS_LABEL, result.status);
+  console.log(CLI.SUBJECT_OUTPUT_LABEL, result.subject);
+  console.log(CLI.CLASSIFICATION_LABEL, result.classification);
+  console.log(CLI.REPLY_SENT_LABEL, result.responseText);
 
-  console.log("\n--- Final steps ---");
+  console.log(CLI.FINAL_STEPS_HEADER);
   printSteps(result.steps);
 
   // Memory demo: full state is retrievable from the checkpointer by thread_id.
   const snapshot = await graph.getState(config);
   console.log(
-    `\nThread "${config.configurable.thread_id}" remembers ${snapshot.values.steps?.length ?? 0} step(s).`,
+    CLI.formatThreadMemory(
+      config.configurable.thread_id,
+      snapshot.values.steps?.length ?? 0,
+    ),
   );
 };
 

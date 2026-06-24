@@ -2,10 +2,11 @@
 import { Command } from "@langchain/langgraph";
 
 // Internal
-import { searchDocs } from "../integrations/doc-search.js";
+import { INTEGRATIONS, STATUS, STEPS } from "../../constants/messages";
+import { searchDocs } from "../integrations/doc-search";
 
 // Types
-import type { EmailAgentStateType } from "../state.js";
+import type { EmailAgentStateType } from "../state";
 
 /**
  * Searches the local knowledge base and routes to draftReply.
@@ -25,15 +26,19 @@ export const docSearch = async (
   try {
     searchResults = await searchDocs(query);
     if (searchResults.length === 0) {
-      searchResults = ["No matching documentation snippets were found."];
+      searchResults = [INTEGRATIONS.DOC_SEARCH_NO_MATCHES];
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    searchResults = [`Documentation search unavailable: ${message}`];
+    searchResults = [INTEGRATIONS.formatDocSearchUnavailable(message)];
   }
 
   return new Command({
-    update: { searchResults, status: "docs_searched", steps: ["Documentation search completed"] },
+    update: {
+      searchResults,
+      status: STATUS.DOCS_SEARCHED,
+      steps: [STEPS.DOC_SEARCH_COMPLETED],
+    },
     goto: "draftReply",
   });
 };

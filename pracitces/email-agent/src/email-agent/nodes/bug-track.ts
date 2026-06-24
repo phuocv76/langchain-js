@@ -2,10 +2,16 @@
 import { Command } from "@langchain/langgraph";
 
 // Internal
-import { createBugIssue } from "../integrations/github.js";
+import {
+  INTEGRATIONS,
+  PLACEHOLDERS,
+  STATUS,
+  STEPS,
+} from "../../constants/messages";
+import { createBugIssue } from "../integrations/github";
 
 // Types
-import type { EmailAgentStateType } from "../state.js";
+import type { EmailAgentStateType } from "../state";
 
 /**
  * Files a GitHub issue for bug reports and routes to draftReply.
@@ -16,33 +22,35 @@ export const bugTrack = async (
   state: EmailAgentStateType,
 ): Promise<Command<"draftReply">> => {
   const classification = state.classification;
-  const title = `[Email Bug] ${classification?.topic ?? state.subject ?? "Customer report"}`;
+  const title = `${INTEGRATIONS.BUG_ISSUE_TITLE_PREFIX} ${classification?.topic ?? state.subject ?? PLACEHOLDERS.CUSTOMER_REPORT}`;
 
   const body = [
-    "## Reported via email agent",
+    INTEGRATIONS.BUG_ISSUE_BODY_HEADER,
     "",
-    `**From:** ${state.senderEmail ?? "unknown"}`,
-    `**Subject:** ${state.subject ?? "(none)"}`,
+    `${INTEGRATIONS.BUG_ISSUE_FROM_LABEL} ${state.senderEmail ?? PLACEHOLDERS.UNKNOWN_VALUE}`,
+    `${INTEGRATIONS.BUG_ISSUE_SUBJECT_LABEL} ${state.subject ?? PLACEHOLDERS.NONE}`,
     "",
-    "### Email body",
-    state.emailContent ?? "(empty)",
+    INTEGRATIONS.BUG_ISSUE_BODY_SECTION,
+    state.emailContent ?? PLACEHOLDERS.EMPTY,
   ].join("\n");
 
   let searchResults: string[];
 
   try {
     const issue = await createBugIssue({ title, body });
-    searchResults = [`GitHub issue #${issue.number} created: ${issue.url}`];
+    searchResults = [
+      INTEGRATIONS.formatGitHubIssueCreated(issue.number, issue.url),
+    ];
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    searchResults = [`Bug tracking unavailable: ${message}`];
+    searchResults = [INTEGRATIONS.formatBugTrackingUnavailable(message)];
   }
 
   return new Command({
     update: {
       searchResults,
-      status: "bug_tracked",
-      steps: ["Bug report filed on GitHub"],
+      status: STATUS.BUG_TRACKED,
+      steps: [STEPS.BUG_TRACK_FILED],
     },
     goto: "draftReply",
   });

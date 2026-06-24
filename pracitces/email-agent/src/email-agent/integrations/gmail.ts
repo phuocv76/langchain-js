@@ -1,8 +1,15 @@
 // Libs for third party
 import { google } from "googleapis";
 
+// Internal
+import {
+  ERRORS,
+  INTEGRATIONS,
+  PLACEHOLDERS,
+} from "../../constants/messages";
+
 // Types
-import type { EmailMessage } from "../types.js";
+import type { EmailMessage } from "../types";
 
 let gmailClient: ReturnType<typeof google.gmail> | undefined;
 
@@ -17,9 +24,7 @@ const getGmailClient = () => {
   const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
 
   if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error(
-      "Gmail credentials missing. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in .env.",
-    );
+    throw new Error(ERRORS.GMAIL_CREDENTIALS);
   }
 
   const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
@@ -111,8 +116,8 @@ export const fetchTargetEmail = async (
     id: message.data.id ?? messageId,
     threadId: message.data.threadId ?? messageId,
     from: getHeader(headers, "From"),
-    subject: getHeader(headers, "Subject") || "(no subject)",
-    body: body.trim() || "(empty body)",
+    subject: getHeader(headers, "Subject") || PLACEHOLDERS.NO_SUBJECT,
+    body: body.trim() || PLACEHOLDERS.EMPTY_BODY,
   };
 };
 
@@ -130,14 +135,14 @@ export const sendEmailReply = async (params: {
   const gmail = getGmailClient();
   const userId = process.env.GMAIL_USER ?? "me";
 
-  const subject = params.subject.startsWith("Re:")
+  const subject = params.subject.startsWith(INTEGRATIONS.GMAIL_REPLY_PREFIX)
     ? params.subject
-    : `Re: ${params.subject}`;
+    : `${INTEGRATIONS.GMAIL_REPLY_PREFIX} ${params.subject}`;
 
   const raw = [
     `To: ${params.to}`,
     `Subject: ${subject}`,
-    "Content-Type: text/plain; charset=utf-8",
+    INTEGRATIONS.GMAIL_CONTENT_TYPE,
     "",
     params.body,
   ].join("\r\n");

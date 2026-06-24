@@ -3,7 +3,7 @@ import { Annotation } from "@langchain/langgraph";
 import { CopilotKitStateAnnotation } from "@copilotkit/sdk-js/langgraph";
 
 // Types
-import type { EmailClassification, ReviewDecision } from "./types.js";
+import type { EmailClassification, ReviewDecision } from "./types";
 
 /** LangGraph state for the read-and-reply email agent. */
 export const EmailAgentState = Annotation.Root({

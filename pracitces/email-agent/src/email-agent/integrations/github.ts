@@ -1,6 +1,9 @@
 // Libs for third party
 import { Octokit } from "@octokit/rest";
 
+// Internal
+import { ERRORS } from "../../constants/messages";
+
 let octokitClient: Octokit | undefined;
 
 /** Returns a lazily constructed GitHub REST client. */
@@ -11,7 +14,7 @@ const getOctokit = (): Octokit => {
 
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
-    throw new Error("Set GITHUB_TOKEN in .env before filing GitHub issues.");
+    throw new Error(ERRORS.GITHUB_TOKEN);
   }
 
   octokitClient = new Octokit({ auth: token });
@@ -22,7 +25,7 @@ const getOctokit = (): Octokit => {
 const getRepo = (): { owner: string; repo: string } => {
   const raw = process.env.GITHUB_REPO;
   if (!raw?.includes("/")) {
-    throw new Error('Set GITHUB_REPO in "owner/repo" form.');
+    throw new Error(ERRORS.GITHUB_REPO);
   }
 
   const [owner, repo] = raw.split("/");

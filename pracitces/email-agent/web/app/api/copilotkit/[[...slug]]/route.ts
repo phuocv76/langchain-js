@@ -4,4 +4,4 @@ export {
   handleRequest as OPTIONS,
   handleRequest as PATCH,
   handleRequest as POST,
-} from "../handler";
+} from '../handler';

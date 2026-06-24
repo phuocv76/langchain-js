@@ -2,10 +2,15 @@
 import type { LangGraphRunnableConfig } from "@langchain/langgraph";
 
 // Internal
-import { fetchTargetEmail } from "../integrations/gmail.js";
+import {
+  STATUS,
+  STEPS,
+  formatReadEmailLoaded,
+} from "../../constants/messages";
+import { fetchTargetEmail } from "../integrations/gmail";
 
 // Types
-import type { EmailAgentStateType } from "../state.js";
+import type { EmailAgentStateType } from "../state";
 
 /**
  * Reads the target email from Gmail and returns partial state.
@@ -24,9 +29,9 @@ export const readEmail = async (
 
   if (!email) {
     return {
-      status: "no_unread_email",
+      status: STATUS.NO_UNREAD_EMAIL,
       emailContent: undefined,
-      steps: ["Read email: no unread messages in inbox"],
+      steps: [STEPS.READ_EMAIL_NO_UNREAD],
     };
   }
 
@@ -36,7 +41,7 @@ export const readEmail = async (
     senderEmail: email.from,
     subject: email.subject,
     emailContent: email.body,
-    status: "email_loaded",
-    steps: [`Read email: "${email.subject}" from ${email.from}`],
+    status: STATUS.EMAIL_LOADED,
+    steps: [formatReadEmailLoaded(email.subject, email.from)],
   };
 };

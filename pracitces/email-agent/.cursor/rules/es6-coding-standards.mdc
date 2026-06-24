@@ -8,6 +8,21 @@ alwaysApply: true
 
 When writing or editing TypeScript/JavaScript in this project, follow these conventions.
 
+## Strings and quotes
+
+- Prefer **single quotes** (`'`) for strings and module specifiers.
+- Use double quotes only when the string contains a single quote, or when required by JSON / external formats.
+
+```typescript
+// ❌ BAD
+import { getChatModel } from "../lib/model";
+const label = "draft ready";
+
+// ✅ GOOD
+import { getChatModel } from '../lib/model';
+const label = 'draft ready';
+```
+
 ## Functions — ES6 syntax
 
 - Prefer `const` arrow functions over `function` declarations.
@@ -57,23 +72,23 @@ Order:
 2. `// Internal` — relative project imports (`../lib/`, `./nodes/`, etc.)
 3. `// Types` — optional; use when type-only imports are numerous
 
-Within a group, sort alphabetically. Use `.js` extensions on relative imports (ESM).
+Within a group, sort alphabetically. Omit file extensions on relative imports (e.g. `'../lib/model'`, not `'../lib/model.ts'`). This project runs TypeScript directly via `tsx` and the LangGraph dev server with `moduleResolution: 'Bundler'`.
 
 ```typescript
 // Libs for third party
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { StringOutputParser } from '@langchain/core/output_parsers';
 
 // Internal
-import { getChatModel } from "../lib/model.js";
+import { getChatModel } from '../lib/model';
 ```
 
 Type-only imports may live in the third-party group or a dedicated `// Types` group:
 
 ```typescript
 // Types
-import type { LangGraphRunnableConfig } from "@langchain/langgraph";
-import type { EmailStateType } from "../state.js";
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+import type { EmailStateType } from '../state';
 ```
 
 ## TypeScript best practices

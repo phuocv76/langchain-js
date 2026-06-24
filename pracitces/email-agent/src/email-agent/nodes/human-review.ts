@@ -2,9 +2,12 @@
 import { Command, END, interrupt } from "@langchain/langgraph";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph";
 
+// Internal
+import { REVIEW, STATUS, STEPS } from "../../constants/messages";
+
 // Types
-import type { EmailAgentStateType } from "../state.js";
-import type { ReviewDecision } from "../types.js";
+import type { EmailAgentStateType } from "../state";
+import type { ReviewDecision } from "../types";
 
 /** Parses CopilotKit resume payloads (string or object). */
 const parseReviewDecision = (value: unknown): ReviewDecision => {
@@ -72,7 +75,7 @@ export const humanReview = async (
       draftResponse: state.responseText,
       urgency: state.classification?.urgency,
       intent: state.classification?.intent,
-      action: "Review and approve, edit, or reject this draft reply.",
+      action: REVIEW.INTERRUPT_ACTION,
     });
     decision = parseReviewDecision(rawDecision);
   }
@@ -80,8 +83,8 @@ export const humanReview = async (
   if (decision.action === "reject") {
     return new Command({
       update: {
-        status: "rejected_by_human",
-        steps: ["Human review: rejected"],
+        status: STATUS.REJECTED_BY_HUMAN,
+        steps: [STEPS.HUMAN_REVIEW_REJECTED],
       },
       goto: END,
     });
@@ -91,8 +94,8 @@ export const humanReview = async (
     return new Command({
       update: {
         responseText: decision.editedResponse,
-        status: "approved_by_human",
-        steps: ["Human review: edited inline and approved"],
+        status: STATUS.APPROVED_BY_HUMAN,
+        steps: [STEPS.HUMAN_REVIEW_EDITED_INLINE],
       },
       goto: "sendReply",
     });
@@ -102,8 +105,8 @@ export const humanReview = async (
     return new Command({
       update: {
         decision,
-        status: "draft_revision_requested",
-        steps: ["Human review: edit requested — redrafting"],
+        status: STATUS.DRAFT_REVISION_REQUESTED,
+        steps: [STEPS.HUMAN_REVIEW_EDIT_REQUESTED],
       },
       goto: "draftReply",
     });
@@ -111,8 +114,8 @@ export const humanReview = async (
 
   return new Command({
     update: {
-      status: "approved_by_human",
-      steps: ["Human review: approved"],
+      status: STATUS.APPROVED_BY_HUMAN,
+      steps: [STEPS.HUMAN_REVIEW_APPROVED],
     },
     goto: "sendReply",
   });

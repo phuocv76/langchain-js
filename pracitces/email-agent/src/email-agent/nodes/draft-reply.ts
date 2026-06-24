@@ -3,10 +3,16 @@ import { HumanMessage } from "@langchain/core/messages";
 import { Command } from "@langchain/langgraph";
 
 // Internal
-import { getChatModel } from "../../lib/model.js";
+import {
+  PLACEHOLDERS,
+  PROMPTS,
+  STATUS,
+  STEPS,
+} from "../../constants/messages";
+import { getChatModel } from "../../lib/model";
 
 // Types
-import type { EmailAgentStateType } from "../state.js";
+import type { EmailAgentStateType } from "../state";
 
 /**
  * Drafts a reply using classification context and optional doc snippets.
@@ -24,41 +30,29 @@ export const draftReply = async (
 
   if (state.searchResults.length > 0) {
     const formatted = state.searchResults.map((doc) => `- ${doc}`).join("\n");
-    contextSections.push(`Relevant documentation:\n${formatted}`);
+    contextSections.push(
+      `${PROMPTS.RELEVANT_DOCUMENTATION_HEADER}${formatted}`,
+    );
   }
 
   const feedbackSection =
     isRevision && state.decision?.feedback
-      ? `
-Previous draft:
-${state.responseText ?? "(none)"}
-
-Reviewer feedback (revise accordingly):
-${state.decision.feedback}
-`
+      ? PROMPTS.formatFeedbackSection(
+          state.responseText ?? PLACEHOLDERS.NONE,
+          state.decision.feedback,
+        )
       : "";
 
-  const draftPrompt = `
-Draft a professional reply to this customer email:
-
-Subject: ${state.subject ?? "(unknown)"}
-From: ${state.senderEmail ?? "(unknown)"}
-Email:
-${state.emailContent ?? ""}
-
-Intent: ${classification?.intent ?? "unknown"}
-Urgency: ${classification?.urgency ?? "medium"}
-Topic: ${classification?.topic ?? "general"}
-
-${contextSections.join("\n\n")}
-${feedbackSection}
-
-Guidelines:
-- Be concise, helpful, and professional
-- Address the customer's specific concern
-- Reference documentation when relevant
-- Do not invent ticket numbers or policies not provided in context
-`;
+  const draftPrompt = PROMPTS.DRAFT_REPLY({
+    subject: state.subject ?? PLACEHOLDERS.UNKNOWN,
+    sender: state.senderEmail ?? PLACEHOLDERS.UNKNOWN,
+    emailContent: state.emailContent ?? "",
+    intent: classification?.intent ?? PLACEHOLDERS.UNKNOWN_INTENT,
+    urgency: classification?.urgency ?? PLACEHOLDERS.MEDIUM_URGENCY,
+    topic: classification?.topic ?? PLACEHOLDERS.GENERAL_TOPIC,
+    contextSections: contextSections.join("\n\n"),
+    feedbackSection,
+  });
 
   const response = await getChatModel().invoke([new HumanMessage(draftPrompt)]);
   const responseText =
@@ -69,12 +63,10 @@ Guidelines:
   return new Command({
     update: {
       responseText,
-      status: "draft_ready",
+      status: STATUS.DRAFT_READY,
       decision: undefined,
       steps: [
-        isRevision
-          ? "Draft reply: revised per reviewer feedback"
-          : "Draft reply: generated",
+        isRevision ? STEPS.DRAFT_REPLY_REVISED : STEPS.DRAFT_REPLY_GENERATED,
       ],
     },
     goto: "humanReview",

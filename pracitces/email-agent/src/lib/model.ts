@@ -1,6 +1,9 @@
 // Libs for third party
 import { ChatOpenAI } from "@langchain/openai";
 
+// Internal
+import { ERRORS } from "../constants/messages";
+
 /** Shared chat model configured from environment variables. */
 let cachedModel: ChatOpenAI | undefined;
 
@@ -16,7 +19,7 @@ export const getChatModel = (): ChatOpenAI => {
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("Set OPENAI_API_KEY in .env before running exercises.");
+    throw new Error(ERRORS.OPENAI_API_KEY);
   }
 
   cachedModel = new ChatOpenAI({

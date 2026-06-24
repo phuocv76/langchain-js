@@ -2,11 +2,17 @@
 import { Command, END } from "@langchain/langgraph";
 
 // Internal
-import { getChatModel } from "../../lib/model.js";
-import { EmailClassificationSchema } from "../types.js";
+import {
+  PLACEHOLDERS,
+  PROMPTS,
+  STATUS,
+  formatClassified,
+} from "../../constants/messages";
+import { getChatModel } from "../../lib/model";
+import { EmailClassificationSchema } from "../types";
 
 // Types
-import type { EmailAgentStateType } from "../state.js";
+import type { EmailAgentStateType } from "../state";
 
 type RouteTarget = "docSearch" | "bugTrack" | "draftReply";
 
@@ -19,21 +25,21 @@ export const classifyIntent = async (
   state: EmailAgentStateType,
 ): Promise<Command<RouteTarget | typeof END>> => {
   if (!state.emailContent) {
-    return new Command({ goto: END, update: { status: "skipped_no_email" } });
+    return new Command({
+      goto: END,
+      update: { status: STATUS.SKIPPED_NO_EMAIL },
+    });
   }
 
   const model = getChatModel().withStructuredOutput(EmailClassificationSchema);
 
-  const classification = await model.invoke(`
-Analyze this customer email and classify it:
-
-Subject: ${state.subject ?? "(unknown)"}
-From: ${state.senderEmail ?? "(unknown)"}
-Email:
-${state.emailContent}
-
-Provide intent, urgency, topic, and a one-line summary.
-`);
+  const classification = await model.invoke(
+    PROMPTS.CLASSIFY_INTENT(
+      state.subject ?? PLACEHOLDERS.UNKNOWN,
+      state.senderEmail ?? PLACEHOLDERS.UNKNOWN,
+      state.emailContent,
+    ),
+  );
 
   let goto: RouteTarget = "draftReply";
 
@@ -49,8 +55,8 @@ Provide intent, urgency, topic, and a one-line summary.
   return new Command({
     update: {
       classification,
-      status: "classified",
-      steps: [`Classified: ${classification.intent} (${classification.urgency})`],
+      status: STATUS.CLASSIFIED,
+      steps: [formatClassified(classification.intent, classification.urgency)],
     },
     goto,
   });

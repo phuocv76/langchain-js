@@ -6,7 +6,7 @@ Canonical TypeScript snippets for this repo. All assume `getChatModel()` from `.
 
 ```ts
 import { z } from "zod";
-import { getChatModel } from "../lib/model.js";
+import { getChatModel } from "../lib/model";
 
 const schema = z.object({
   sentiment: z.enum(["positive", "negative", "neutral"]),
@@ -23,7 +23,7 @@ console.log(result); // { sentiment: "positive", summary: "..." }
 ```ts
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { getChatModel } from "../lib/model.js";
+import { getChatModel } from "../lib/model";
 
 const getWeather = tool(
   async ({ city }) => `It is sunny in ${city}.`,
@@ -43,7 +43,7 @@ console.log(res.tool_calls);
 
 ```ts
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
-import { getChatModel } from "../lib/model.js";
+import { getChatModel } from "../lib/model";
 
 const agent = createReactAgent({ llm: getChatModel(), tools: [getWeather] });
 const out = await agent.invoke({
