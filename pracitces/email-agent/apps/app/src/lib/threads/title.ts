@@ -1,4 +1,4 @@
-const PLACEHOLDER_THREAD_NAMES = new Set(["Untitled", "New conversation"]);
+const PLACEHOLDER_THREAD_NAMES = new Set(['Untitled', 'New conversation']);
 
 export const MAX_THREAD_TITLE_LENGTH = 80;
 
@@ -15,18 +15,18 @@ export const isPlaceholderThreadName = (
 
 /** Extracts plain text from a CopilotKit / AG-UI message content value. */
 export const stringifyMessageContent = (content: unknown): string => {
-  if (typeof content === "string") {
+  if (typeof content === 'string') {
     return content.trim();
   }
 
   if (content == null) {
-    return "";
+    return '';
   }
 
   try {
     return JSON.stringify(content).trim();
   } catch {
-    return "";
+    return '';
   }
 };
 
@@ -40,7 +40,7 @@ export const formatThreadTitleFromMessage = (
   content: unknown,
 ): string | null => {
   const singleLine = stringifyMessageContent(content)
-    .replace(/\s+/g, " ")
+    .replace(/\s+/g, ' ')
     .trim();
 
   if (!singleLine) {
@@ -64,7 +64,7 @@ export const formatThreadDisplayName = (
   name: string | null | undefined,
 ): string => {
   if (isPlaceholderThreadName(name)) {
-    return "New conversation";
+    return 'New conversation';
   }
 
   return name!.trim();

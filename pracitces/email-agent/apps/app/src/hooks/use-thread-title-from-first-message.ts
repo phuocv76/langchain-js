@@ -4,20 +4,20 @@ import {
   useThreads,
   UseAgentUpdate,
 } from "@copilotkit/react-core/v2";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 // Internal
 import {
   formatThreadTitleFromMessage,
   isPlaceholderThreadName,
-} from "../lib/thread-title";
+} from "@/lib/threads/title";
 
 /**
  * Renames Intelligence threads from the first user message instead of "Untitled".
  *
  * @param agentId - CopilotKit agent id backing the chat surface.
  */
-const useThreadTitleFromFirstMessage = (agentId: string): void => {
+export const useThreadTitleFromFirstMessage = (agentId: string): void => {
   const { agent } = useAgent({
     agentId,
     updates: [UseAgentUpdate.OnMessagesChanged],
@@ -54,34 +54,4 @@ const useThreadTitleFromFirstMessage = (agentId: string): void => {
       renamedThreadIdsRef.current.delete(threadId);
     });
   }, [agent.messages, agent.threadId, renameThread, threads]);
-};
-
-interface ThreadTitleFromFirstMessageProps {
-  agentId: string;
-}
-
-/**
- * Client-only thread title sync — `useThreads` needs a browser store snapshot.
- */
-export const ThreadTitleFromFirstMessage = ({
-  agentId,
-}: ThreadTitleFromFirstMessageProps): React.JSX.Element | null => {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) {
-    return null;
-  }
-
-  return <ThreadTitleFromFirstMessageInner agentId={agentId} />;
-};
-
-const ThreadTitleFromFirstMessageInner = ({
-  agentId,
-}: ThreadTitleFromFirstMessageProps): null => {
-  useThreadTitleFromFirstMessage(agentId);
-  return null;
 };

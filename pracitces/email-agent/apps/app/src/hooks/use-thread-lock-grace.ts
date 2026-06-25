@@ -1,36 +1,27 @@
 // Libs for third party
 import { useCopilotContext } from "@copilotkit/react-core";
-import {
-  CopilotChat,
-  useAgent,
-  useCopilotKit,
-} from "@copilotkit/react-core/v2";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAgent, useCopilotKit } from "@copilotkit/react-core/v2";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // Internal
-import { ThreadTitleFromFirstMessage } from "../hooks/use-thread-title-from-first-message";
 import {
   isThreadLockError,
   THREAD_LOCK_GRACE_MS,
   THREAD_LOCK_RETRY_MS,
-} from "../lib/thread-lock";
+} from "@/lib/threads/lock";
 
-const AGENT_ID = "emailAgent";
-
-interface EmailAgentChatProps {
-  sessionKey: string;
-  threadId: string | undefined;
+export interface ThreadLockGraceState {
+  readonly effectiveIsRunning: boolean;
 }
 
 /**
- * CopilotKit chat that treats thread-lock conflicts as extended loading instead
- * of surfacing the raw agent error banner.
+ * Handles CopilotKit Intelligence thread-lock races with silent retries
+ * and suppresses transient error banners during the grace window.
+ *
+ * @param agentId - CopilotKit agent id backing the chat surface.
  */
-export const EmailAgentChat = ({
-  sessionKey,
-  threadId,
-}: EmailAgentChatProps): React.JSX.Element => {
-  const { agent } = useAgent({ agentId: AGENT_ID });
+export const useThreadLockGrace = (agentId: string): ThreadLockGraceState => {
+  const { agent } = useAgent({ agentId });
   const { copilotkit } = useCopilotKit();
   const { setBannerError } = useCopilotContext();
   const [lockGraceUntil, setLockGraceUntil] = useState(0);
@@ -133,27 +124,8 @@ export const EmailAgentChat = ({
   );
 
   const isLockGraceActive = lockGraceUntil > 0 && Date.now() < lockGraceUntil;
-  const effectiveIsRunning = agent.isRunning || isLockGraceActive;
 
-  const chatView = useMemo(
-    () => ({ isRunning: effectiveIsRunning }),
-    [effectiveIsRunning],
-  );
-
-  return (
-    <>
-      <ThreadTitleFromFirstMessage agentId={AGENT_ID} />
-      <CopilotChat
-        key={`${sessionKey}-${threadId ?? "new"}`}
-        agentId={AGENT_ID}
-        threadId={threadId}
-        chatView={chatView}
-        labels={{
-          welcomeMessageText: "Where should we start?",
-          chatInputPlaceholder: "Ask anything",
-          modalHeaderTitle: "Email Agent",
-        }}
-      />
-    </>
-  );
+  return {
+    effectiveIsRunning: agent.isRunning || isLockGraceActive,
+  };
 };

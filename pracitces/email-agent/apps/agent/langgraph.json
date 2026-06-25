@@ -2,7 +2,9 @@
   "node_version": "20",
   "dependencies": ["."],
   "graphs": {
-    "emailAgent": "./src/email-agent/graph.ts:graph"
+    "emailAgent": "./src/email-agent/graph.ts:graph",
+    "newsAgent": "./src/news-agent/graph.ts:graph",
+    "warrantyAgent": "./src/warranty-agent/graph.ts:graph"
   },
   "env": "../../.env"
 }

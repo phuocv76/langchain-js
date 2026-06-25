@@ -39,6 +39,8 @@ export const PLACEHOLDERS = {
 
 /** Append-only step trail messages. */
 export const STEPS = {
+  SCOPE_CHECK_PASSED: "Scope check: in-domain request",
+  SCOPE_CHECK_REJECTED: "Scope check: rejected off-topic request",
   READ_EMAIL_NO_UNREAD: "Read email: no unread messages in inbox",
   DOC_SEARCH_COMPLETED: "Documentation search completed",
   BUG_TRACK_FILED: "Bug report filed on GitHub",
@@ -174,4 +176,22 @@ export const ERRORS = {
     "Gmail credentials missing. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in .env.",
   GITHUB_TOKEN: "Set GITHUB_TOKEN in .env before filing GitHub issues.",
   GITHUB_REPO: 'Set GITHUB_REPO in "owner/repo" form.',
+} as const;
+
+/** In-chat guardrail messages when user input is outside agent scope. */
+export const GUARDRAILS = {
+  NEWS: "This message is outside my scope. I only cover AI news — please ask about artificial intelligence, LLMs, or related topics.",
+  EMAIL:
+    "This message is outside my scope. I handle email support workflows — ask about Gmail, drafting replies, bugs, or billing.",
+  WARRANTY:
+    "This message is outside my scope. I only handle warranty and return questions — describe your product, purchase date, and issue.",
+} as const;
+
+/** Keyword patterns for per-agent scope guardrails. */
+export const GUARDRAIL_KEYWORDS = {
+  NEWS: /\b(ai|artificial intelligence|llm|gpt|openai|anthropic|machine learning|model|agent|neural|deep learning|news|headline|summarize|summary)\b/i,
+  EMAIL:
+    /\b(email|gmail|inbox|reply|draft|support|bug|billing|customer|message|thread|issue|ticket|feature|password|account|refund|invoice)\b/i,
+  WARRANTY:
+    /\b(warranty|return|refund|repair|policy|product|appliance|claim|coverage|broken|defect|replace|exchange|purchase|receipt|tv|washer|dryer|fridge|laptop|phone)\b/i,
 } as const;

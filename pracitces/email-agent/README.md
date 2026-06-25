@@ -1,19 +1,24 @@
-# Email Agent Practice
+# LangChain Practice Agents
 
-One LangChain + LangGraph practice project: a TypeScript agent that **reads Gmail**,
-classifies intent, searches local docs or files a GitHub issue, **drafts a reply**,
-pauses for **human review**, then **sends** the response. A Vite + CopilotKit UI
-runs the same graph with in-chat review.
+Three LangChain + LangGraph practice agents in one monorepo:
+
+| Agent                  | Graph ID        | Description                                                    |
+| ---------------------- | --------------- | -------------------------------------------------------------- |
+| **Email Agent**        | `emailAgent`    | Read Gmail, classify, draft replies, human review, send        |
+| **AI News Summarizer** | `newsAgent`     | `createAgent` + tools + middleware + structured output         |
+| **Warranty Assistant** | `warrantyAgent` | Multi-agent handoffs, RAG, human-in-the-loop, long-term memory |
+
+A Vite + CopilotKit UI lets you switch agents in the sidebar and chat with each graph.
 
 ## Architecture
 
 This project is a monorepo with three services (mirrors the [langchainjs](https://github.com/CopilotKit/CopilotKit) template layout):
 
-| Service | Port | Description |
-| ------- | ---- | ----------- |
-| **Frontend** (`apps/app`) | 3000 | Vite + React app with CopilotKit chat UI |
-| **BFF** (`apps/bff`) | 4000 | Hono server running the CopilotKit runtime |
-| **Agent** (`apps/agent`) | 2024 | LangGraph email agent |
+| Service                   | Port | Description                                               |
+| ------------------------- | ---- | --------------------------------------------------------- |
+| **Frontend** (`apps/app`) | 3000 | Vite + React app with CopilotKit chat UI and agent picker |
+| **BFF** (`apps/bff`)      | 4000 | Hono server running the CopilotKit runtime                |
+| **Agent** (`apps/agent`)  | 2024 | LangGraph email agent                                     |
 
 ## Setup
 
@@ -35,7 +40,9 @@ cp .env.example .env   # fill in keys (see below)
 pnpm gmail:token       # one-time: mint GOOGLE_REFRESH_TOKEN
 ```
 
-Required in `.env`: `OPENAI_API_KEY`, Gmail OAuth vars, `GITHUB_TOKEN`, `GITHUB_REPO`.
+Required in `.env`: `OPENAI_API_KEY`. Email agent also needs Gmail OAuth vars, `GITHUB_TOKEN`, `GITHUB_REPO`.
+
+Optional: `TAVILY_API_KEY` for richer news search (otherwise Hacker News Algolia fallback).
 
 ## Run
 
@@ -75,15 +82,18 @@ AUTO_APPROVE=true pnpm cli
 
 ```
 apps/
-  agent/          LangGraph workflow + CLI entry
+  agent/          LangGraph workflows + CLI entry
     src/
-      main.ts       CLI entry (pnpm cli)
-      lib/          env + OpenAI model factory
-      email-agent/  graph, nodes, integrations
-    langgraph.json  exposes graph as "emailAgent"
-  app/            Vite + React + CopilotKit UI
+      main.ts         CLI entry (pnpm cli)
+      lib/            env + OpenAI model factory
+      email-agent/    Gmail workflow graph
+      news-agent/     Core practice: createAgent, middleware, structured output
+      warranty-agent/ Advanced practice: handoffs, RAG, HITL, memory
+    langgraph.json    exposes emailAgent, newsAgent, warrantyAgent
+  app/            Vite + React + CopilotKit UI (agent picker in sidebar)
   bff/            Hono CopilotKit runtime (proxied by Vite)
-docs/             knowledge-base markdown for doc search
+docs/
+  warranty/       RAG knowledge base for warranty agent
 scripts/
   get-gmail-token.mjs
 pnpm-workspace.yaml

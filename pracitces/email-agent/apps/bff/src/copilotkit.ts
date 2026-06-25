@@ -66,6 +66,14 @@ const agents = {
     deploymentUrl,
     graphId: "emailAgent",
   }),
+  newsAgent: new LangGraphAgent({
+    deploymentUrl,
+    graphId: "newsAgent",
+  }),
+  warrantyAgent: new LangGraphAgent({
+    deploymentUrl,
+    graphId: "warrantyAgent",
+  }),
 };
 
 const runtime = intelligence

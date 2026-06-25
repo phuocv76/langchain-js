@@ -15,6 +15,6 @@ export const isThreadLockError = (
   code: string | undefined,
   error: Error,
 ): boolean =>
-  code === "agent_thread_locked" ||
-  (code === "agent_run_failed" &&
-    error.message.toLowerCase().includes("locked"));
+  code === 'agent_thread_locked' ||
+  (code === 'agent_run_failed' &&
+    error.message.toLowerCase().includes('locked'));
