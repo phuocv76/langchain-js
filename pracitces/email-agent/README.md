@@ -2,8 +2,18 @@
 
 One LangChain + LangGraph practice project: a TypeScript agent that **reads Gmail**,
 classifies intent, searches local docs or files a GitHub issue, **drafts a reply**,
-pauses for **human review**, then **sends** the response. A Next.js + CopilotKit UI
+pauses for **human review**, then **sends** the response. A Vite + CopilotKit UI
 runs the same graph with in-chat review.
+
+## Architecture
+
+This project is a monorepo with three services (mirrors the [langchainjs](https://github.com/CopilotKit/CopilotKit) template layout):
+
+| Service | Port | Description |
+| ------- | ---- | ----------- |
+| **Frontend** (`apps/app`) | 3000 | Vite + React app with CopilotKit chat UI |
+| **BFF** (`apps/bff`) | 4000 | Hono server running the CopilotKit runtime |
+| **Agent** (`apps/agent`) | 2024 | LangGraph email agent |
 
 ## Setup
 
@@ -29,12 +39,21 @@ Required in `.env`: `OPENAI_API_KEY`, Gmail OAuth vars, `GITHUB_TOKEN`, `GITHUB_
 
 ## Run
 
-**Recommended — agent server + web UI (human review in browser):**
+**Recommended — agent + BFF + web UI (human review in browser):**
 
 ```bash
 pnpm dev
 # LangGraph API  → http://localhost:2024
-# Next.js + UI   → http://localhost:3000
+# BFF            → http://localhost:4000
+# Vite + UI      → http://localhost:3000
+```
+
+You can also run each service directly:
+
+```bash
+pnpm dev:agent
+pnpm dev:bff
+pnpm dev:app
 ```
 
 **Terminal-only (interactive review in the shell):**
@@ -55,16 +74,16 @@ AUTO_APPROVE=true pnpm cli
 ## Layout
 
 ```
-src/
-  main.ts         CLI entry (pnpm cli)
-  lib/            env + OpenAI model factory
-  email-agent/    LangGraph workflow
-    graph.ts        exports `graph` for dev server + `compileWithMemory()` for CLI
-    nodes/          read → classify → docSearch/bugTrack → draft → review → send
-    integrations/   gmail.ts, github.ts, doc-search.ts
+apps/
+  agent/          LangGraph workflow + CLI entry
+    src/
+      main.ts       CLI entry (pnpm cli)
+      lib/          env + OpenAI model factory
+      email-agent/  graph, nodes, integrations
+    langgraph.json  exposes graph as "emailAgent"
+  app/            Vite + React + CopilotKit UI
+  bff/            Hono CopilotKit runtime (proxied by Vite)
 docs/             knowledge-base markdown for doc search
-web/              Next.js + CopilotKit UI
-langgraph.json    exposes graph as "emailAgent"
 scripts/
   get-gmail-token.mjs
 pnpm-workspace.yaml

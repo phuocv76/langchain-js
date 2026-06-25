@@ -1,6 +1,0 @@
-# Next.js build output (entire tree)
-.next
-.next/
-**/.next/
-out/
-*.tsbuildinfo

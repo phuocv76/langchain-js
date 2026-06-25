@@ -1,10 +1,11 @@
-'use client';
-
 // Libs for third party
-import { useCopilotKit, useThreads } from '@copilotkit/react-core/v2';
-import { useEffect, useState } from 'react';
+import { useCopilotKit, useThreads } from "@copilotkit/react-core/v2";
+import { useEffect, useState } from "react";
 
-const AGENT_ID = 'emailAgent';
+// Internal
+import { formatThreadDisplayName } from "../lib/thread-title";
+
+const AGENT_ID = "emailAgent";
 
 interface ChatSidebarProps {
   activeThreadId: string | undefined;
@@ -27,11 +28,7 @@ export const ChatSidebar = ({
   return (
     <aside className="chat-sidebar" aria-label="Conversation history">
       <div className="chat-sidebar__top">
-        <button
-          type="button"
-          className="new-chat-button"
-          onClick={onNewChat}
-        >
+        <button type="button" className="new-chat-button" onClick={onNewChat}>
           <ComposeIcon />
           <span>New chat</span>
         </button>
@@ -66,7 +63,7 @@ const ThreadHistory = ({
   const { threads, isLoading, error } = useThreads({ agentId: AGENT_ID });
 
   const runtimeReady =
-    copilotkit.runtimeConnectionStatus === 'connected' &&
+    copilotkit.runtimeConnectionStatus === "connected" &&
     copilotkit.threadEndpoints?.list !== false;
 
   if (!runtimeReady && !error) {
@@ -97,12 +94,12 @@ const ThreadHistory = ({
             <li key={thread.id}>
               <button
                 type="button"
-                className={`thread-item${isActive ? ' thread-item--active' : ''}`}
+                className={`thread-item${isActive ? " thread-item--active" : ""}`}
                 onClick={() => onSelectThread(thread.id)}
-                title={thread.name ?? 'New conversation'}
+                title={formatThreadDisplayName(thread.name)}
               >
                 <span className="thread-item__label">
-                  {thread.name ?? 'New conversation'}
+                  {formatThreadDisplayName(thread.name)}
                 </span>
               </button>
             </li>
@@ -115,22 +112,22 @@ const ThreadHistory = ({
 
 /** Maps useThreads errors to a short, actionable sidebar hint. */
 const formatThreadError = (message: string, runtimeMode?: string): string => {
-  if (message.includes('Thread endpoints are not available')) {
-    if (runtimeMode !== 'intelligence') {
+  if (message.includes("Thread endpoints are not available")) {
+    if (runtimeMode !== "intelligence") {
       return (
-        'Session-only chat history (no cloud save). To persist conversations, run ' +
-        '`npx copilotkit@latest project select` and add the INTELLIGENCE_* vars to .env.'
+        "Session-only chat history (no cloud save). To persist conversations, run " +
+        "`npx copilotkit@latest project select` and add the INTELLIGENCE_* vars to .env."
       );
     }
 
-    return 'Chat history is unavailable. Try a hard refresh (Cmd+Shift+R).';
+    return "Chat history is unavailable. Try a hard refresh (Cmd+Shift+R).";
   }
 
-  if (message.includes('Failed to list threads')) {
+  if (message.includes("Failed to list threads")) {
     return (
-      'Could not load saved conversations. Run `npx copilotkit@latest project select` ' +
-      'in the repo root, add the INTELLIGENCE_API_URL, INTELLIGENCE_GATEWAY_WS_URL, ' +
-      'and INTELLIGENCE_API_KEY values it writes to .env, then restart pnpm dev.'
+      "Could not load saved conversations. Run `npx copilotkit@latest project select` " +
+      "in the repo root, add the INTELLIGENCE_API_URL, INTELLIGENCE_GATEWAY_WS_URL, " +
+      "and INTELLIGENCE_API_KEY values it writes to .env, then restart pnpm dev."
     );
   }
 

@@ -1,5 +1,3 @@
-'use client';
-
 // Libs for third party
 import { useLangGraphInterrupt } from '@copilotkit/react-core';
 import { useState } from 'react';

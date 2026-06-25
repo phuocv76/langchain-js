@@ -1,13 +1,12 @@
-// Libs for third party
 import {
   CopilotKitIntelligence,
   CopilotRuntime,
   createCopilotRuntimeHandler,
-} from '@copilotkit/runtime/v2';
-import { LangGraphAgent } from '@copilotkit/runtime/langgraph';
+} from "@copilotkit/runtime/v2";
+import { LangGraphAgent } from "@copilotkit/runtime/langgraph";
 
 const deploymentUrl =
-  process.env.LANGGRAPH_DEPLOYMENT_URL ?? 'http://localhost:2024';
+  process.env.LANGGRAPH_DEPLOYMENT_URL ?? "http://localhost:2024";
 
 /** Intelligence credentials — supports CLI (`INTELLIGENCE_*`) and manual (`COPILOTKIT_*`) names. */
 const readIntelligenceEnv = (): {
@@ -45,10 +44,10 @@ const buildIntelligence = (): CopilotKitIntelligence | undefined => {
 
   if (!hasCompleteIntelligenceConfig()) {
     console.warn(
-      '[copilotkit] Intelligence API key found without INTELLIGENCE_API_URL and ' +
-        'INTELLIGENCE_GATEWAY_WS_URL — using local mode (chat works; history is ' +
-        'session-only). Run `npx copilotkit@latest project select` to enable ' +
-        'cloud-saved threads.',
+      "[copilotkit] Intelligence API key found without INTELLIGENCE_API_URL and " +
+        "INTELLIGENCE_GATEWAY_WS_URL — using local mode (chat works; history is " +
+        "session-only). Run `npx copilotkit@latest project select` to enable " +
+        "cloud-saved threads.",
     );
     return undefined;
   }
@@ -65,7 +64,7 @@ const intelligence = buildIntelligence();
 const agents = {
   emailAgent: new LangGraphAgent({
     deploymentUrl,
-    graphId: 'emailAgent',
+    graphId: "emailAgent",
   }),
 };
 
@@ -73,23 +72,24 @@ const runtime = intelligence
   ? new CopilotRuntime({
       agents,
       intelligence,
-      identifyUser: () => ({ id: 'local-dev-user', name: 'Local Dev User' }),
+      identifyUser: () => ({ id: "local-dev-user", name: "Local Dev User" }),
+      generateThreadNames: false,
     })
   : new CopilotRuntime({ agents });
 
-const BASE_PATH = '/api/copilotkit';
+const BASE_PATH = "/api/copilotkit";
 const THREADS_PATH = `${BASE_PATH}/threads`;
 
 const multiRouteHandler = createCopilotRuntimeHandler({
   runtime,
   basePath: BASE_PATH,
-  mode: 'multi-route',
+  mode: "multi-route",
 });
 
 const singleRouteHandler = createCopilotRuntimeHandler({
   runtime,
   basePath: BASE_PATH,
-  mode: 'single-route',
+  mode: "single-route",
 });
 
 /** Returns true when the request targets the CopilotKit base path (no subpath). */
@@ -109,9 +109,9 @@ const softenThreadListFailure = async (
   }
 
   console.warn(
-    '[copilotkit] Intelligence thread list failed — returning empty list. ' +
-      'Verify INTELLIGENCE_API_URL, INTELLIGENCE_GATEWAY_WS_URL, and ' +
-      'INTELLIGENCE_API_KEY from `npx copilotkit@latest project select`.',
+    "[copilotkit] Intelligence thread list failed — returning empty list. " +
+      "Verify INTELLIGENCE_API_URL, INTELLIGENCE_GATEWAY_WS_URL, and " +
+      "INTELLIGENCE_API_KEY from `npx copilotkit@latest project select`.",
   );
 
   return Response.json({ threads: [], nextCursor: null });
@@ -119,21 +119,19 @@ const softenThreadListFailure = async (
 
 /**
  * Shared CopilotKit v2 handler for `/api/copilotkit` and subpaths.
- *
- * Supports REST subpaths (`/info`, `/agent/.../run`) and single-endpoint POST
- * fallback (`POST /api/copilotkit` with `{ "method": "info" }`) used by the
- * client auto-detect transport.
  */
-export const handleRequest = async (request: Request): Promise<Response> => {
-  const pathname = new URL(request.url, 'http://localhost').pathname;
+export const handleCopilotKitRequest = async (
+  request: Request,
+): Promise<Response> => {
+  const pathname = new URL(request.url, "http://localhost").pathname;
 
-  if (isBaseRuntimePath(pathname) && request.method === 'POST') {
+  if (isBaseRuntimePath(pathname) && request.method === "POST") {
     return singleRouteHandler(request);
   }
 
   const response = await multiRouteHandler(request);
 
-  if (intelligence && pathname === THREADS_PATH && request.method === 'GET') {
+  if (intelligence && pathname === THREADS_PATH && request.method === "GET") {
     return softenThreadListFailure(response);
   }
 

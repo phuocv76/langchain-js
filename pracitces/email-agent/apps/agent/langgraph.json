@@ -4,5 +4,5 @@
   "graphs": {
     "emailAgent": "./src/email-agent/graph.ts:graph"
   },
-  "env": ".env"
+  "env": "../../.env"
 }

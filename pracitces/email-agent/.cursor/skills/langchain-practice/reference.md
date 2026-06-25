@@ -134,7 +134,7 @@ commit checkpoints for resume).
 
 ## CopilotKit + LangGraph dev server
 
-Backend graph is served by `langgraphjs dev` (port 2024) via `langgraph.json`.
+Backend graph is served by `langgraphjs dev` (port 2024) via `apps/agent/langgraph.json`.
 Merge CopilotKit channels into the graph state:
 
 ```ts
@@ -142,20 +142,20 @@ import { CopilotKitStateAnnotation } from "@copilotkit/sdk-js/langgraph";
 export const State = Annotation.Root({ ...CopilotKitStateAnnotation.spec, /* domain fields */ });
 ```
 
-Next.js bridge route (`web/app/api/copilotkit/route.ts`):
+BFF bridge (`apps/bff/src/copilotkit.ts` + Hono server on port 4000):
 
 ```ts
-import { CopilotRuntime, ExperimentalEmptyAdapter, copilotRuntimeNextJSAppRouterEndpoint } from "@copilotkit/runtime";
+import { CopilotRuntime, createCopilotRuntimeHandler } from "@copilotkit/runtime/v2";
 import { LangGraphAgent } from "@copilotkit/runtime/langgraph";
 
 const runtime = new CopilotRuntime({
   agents: { emailAgent: new LangGraphAgent({ deploymentUrl: process.env.LANGGRAPH_DEPLOYMENT_URL!, graphId: "emailAgent" }) },
 });
-export const POST = (req) =>
-  copilotRuntimeNextJSAppRouterEndpoint({ runtime, serviceAdapter: new ExperimentalEmptyAdapter(), endpoint: "/api/copilotkit" }).handleRequest(req);
+export const handleCopilotKitRequest = createCopilotRuntimeHandler({ runtime, basePath: "/api/copilotkit", mode: "multi-route" });
 ```
 
-Frontend: wrap in `<CopilotKit runtimeUrl="/api/copilotkit" agent="emailAgent">`,
+Frontend (`apps/app`): Vite proxies `/api/copilotkit` → BFF. Wrap in
+`<CopilotKit runtimeUrl="/api/copilotkit" agent="emailAgent">`,
 read live state with `useCoAgent`, and render graph interrupts with
 `useLangGraphInterrupt({ render: ({ event, resolve }) => ... })`. `resolve()` takes
 a string, so send `JSON.stringify(decision)` and parse it in the node.

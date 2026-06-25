@@ -1,5 +1,3 @@
-"use client";
-
 // Libs for third party
 import { useCopilotContext } from "@copilotkit/react-core";
 import {
@@ -10,6 +8,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // Internal
+import { ThreadTitleFromFirstMessage } from "../hooks/use-thread-title-from-first-message";
 import {
   isThreadLockError,
   THREAD_LOCK_GRACE_MS,
@@ -142,16 +141,19 @@ export const EmailAgentChat = ({
   );
 
   return (
-    <CopilotChat
-      key={`${sessionKey}-${threadId ?? "new"}`}
-      agentId={AGENT_ID}
-      threadId={threadId}
-      chatView={chatView}
-      labels={{
-        welcomeMessageText: "Where should we start?",
-        chatInputPlaceholder: "Ask anything",
-        modalHeaderTitle: "Email Agent",
-      }}
-    />
+    <>
+      <ThreadTitleFromFirstMessage agentId={AGENT_ID} />
+      <CopilotChat
+        key={`${sessionKey}-${threadId ?? "new"}`}
+        agentId={AGENT_ID}
+        threadId={threadId}
+        chatView={chatView}
+        labels={{
+          welcomeMessageText: "Where should we start?",
+          chatInputPlaceholder: "Ask anything",
+          modalHeaderTitle: "Email Agent",
+        }}
+      />
+    </>
   );
 };

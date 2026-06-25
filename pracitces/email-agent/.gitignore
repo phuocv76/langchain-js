@@ -6,12 +6,9 @@ dist/
 *.log
 .DS_Store
 
-# Next.js (web/) — see also web/.gitignore
-web/.next/
-web/out/
-web/**/*.tsbuildinfo
-**/.next/
-next-env.d.ts
+# Vite build output
+apps/app/dist/
 
 # LangGraph API
 .langgraph_api
+apps/agent/.langgraph_api
