@@ -186,11 +186,57 @@ body {
   min-height: 0;
 }
 
+.chat-main__surface [data-testid="copilot-chat"] {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chat-main__surface [data-testid="copilot-input-overlay"] {
+  z-index: 30;
+  background: linear-gradient(to top, var(--bg-page) 65%, rgb(33 33 33 / 0));
+  padding-top: 1rem;
+}
+
 .muted {
   color: var(--text-muted);
 }
 
 /* Human-in-the-loop review card (inside CopilotKit chat). */
+.interrupt-card--readonly {
+  opacity: 0.92;
+}
+
+.interrupt-card--readonly .interrupt-card__textarea {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.chat-readonly-notice {
+  pointer-events: auto;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 0.85rem 1rem 1.25rem;
+}
+
+.chat-readonly-notice__text {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-inset);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.chat-readonly-notice__text strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 .interrupt-card {
   margin: 0.75rem 0 0;
   padding: 1.25rem;
@@ -198,6 +244,8 @@ body {
   border-radius: 14px;
   background: #2a2a2a;
   color: var(--text-body);
+  max-height: min(75vh, 920px);
+  overflow-y: auto;
 }
 
 .interrupt-card__header {
@@ -220,6 +268,13 @@ body {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.85rem;
+}
+
+.interrupt-card__hint {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .interrupt-card__badges {
@@ -300,7 +355,8 @@ body {
 
 .interrupt-card__textarea {
   resize: vertical;
-  min-height: 140px;
+  min-height: 240px;
+  max-height: 360px;
   margin-bottom: 1rem;
 }
 

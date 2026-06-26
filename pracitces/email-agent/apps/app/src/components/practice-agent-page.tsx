@@ -1,10 +1,12 @@
 // Internal
-import { AgentChat } from "@/components/agent-chat";
-import { ChatSidebar } from "@/components/chat-sidebar";
-import { EmailReviewInterrupt } from "@/components/email-review-interrupt";
-import { WarrantyReviewInterrupt } from "@/components/warranty-review-interrupt";
-import { useChatThreadSession } from "@/hooks/use-chat-thread-session";
-import { getAgent, type AgentId } from "@/lib/agents";
+import { AgentChat } from '@/components/agent-chat';
+import { ChatSidebar } from '@/components/chat-sidebar';
+import { EmailReviewInterrupt } from '@/components/email-review-interrupt';
+import { WarrantyReviewInterrupt } from '@/components/warranty-review-interrupt';
+import { useChatThreadSession } from '@/hooks/use-chat-thread-session';
+import { getAgent, type AgentId } from '@/lib/agents';
+import { ChatSessionProvider } from '@/providers/chat-session';
+import { InterruptFeedbackBridgeProvider } from '@/providers/interrupt-feedback-bridge';
 
 interface AgentPageProps {
   readonly agentId: AgentId;
@@ -14,8 +16,8 @@ interface AgentPageProps {
 export const AgentPage = ({
   agentId,
 }: AgentPageProps): React.JSX.Element => {
-  const { activeThreadId, chatSessionKey, startNewChat, selectThread } =
-    useChatThreadSession();
+  const { activeThreadId, chatSessionKey, isHistoricalThread, startNewChat, selectThread } =
+    useChatThreadSession(agentId);
   const agentMeta = getAgent(agentId);
 
   return (
@@ -36,15 +38,19 @@ export const AgentPage = ({
         </header>
 
         <div className="chat-main__surface">
-          <AgentChat
-            agentId={agentId}
-            sessionKey={String(chatSessionKey)}
-            threadId={activeThreadId}
-          />
-        </div>
+          <ChatSessionProvider isHistoricalThread={isHistoricalThread}>
+            <InterruptFeedbackBridgeProvider key={chatSessionKey}>
+            <AgentChat
+              agentId={agentId}
+              sessionKey={String(chatSessionKey)}
+              threadId={activeThreadId}
+            />
 
-        {agentId === "emailAgent" ? <EmailReviewInterrupt /> : null}
-        {agentId === "warrantyAgent" ? <WarrantyReviewInterrupt /> : null}
+            {agentId === 'emailAgent' ? <EmailReviewInterrupt /> : null}
+            {agentId === 'warrantyAgent' ? <WarrantyReviewInterrupt /> : null}
+            </InterruptFeedbackBridgeProvider>
+          </ChatSessionProvider>
+        </div>
       </main>
     </div>
   );

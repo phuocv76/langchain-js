@@ -29,3 +29,21 @@ export const resolveInterrupt = (
     }),
   );
 };
+
+/**
+ * Resumes an interrupt so the agent regenerates the draft from reviewer feedback.
+ *
+ * @param resolve - CopilotKit interrupt resolver.
+ * @param feedback - Natural-language revision instructions.
+ */
+export const resolveInterruptFeedback = (
+  resolve: (value: string) => void,
+  feedback: string,
+): void => {
+  resolve(
+    JSON.stringify({
+      action: 'edit',
+      feedback: feedback.trim(),
+    }),
+  );
+};

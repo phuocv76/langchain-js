@@ -5,6 +5,7 @@ import { createScopeGuardrailMiddleware } from "../../lib/scope-guardrail";
 /** Rejects off-topic questions in-chat for warranty specialists. */
 export const warrantyScopeGuardrailMiddleware = createScopeGuardrailMiddleware({
   name: "WarrantyScopeGuardrail",
-  keywords: GUARDRAIL_KEYWORDS.WARRANTY,
+  keywords: GUARDRAIL_KEYWORDS.WARRANTY_OFF_TOPIC,
   outOfScopeMessage: GUARDRAILS.WARRANTY,
+  mode: "blocklist",
 });

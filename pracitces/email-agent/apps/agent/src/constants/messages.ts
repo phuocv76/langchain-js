@@ -193,5 +193,8 @@ export const GUARDRAIL_KEYWORDS = {
   EMAIL:
     /\b(email|gmail|inbox|reply|draft|support|bug|billing|customer|message|thread|issue|ticket|feature|password|account|refund|invoice)\b/i,
   WARRANTY:
-    /\b(warranty|return|refund|repair|policy|product|appliance|claim|coverage|broken|defect|replace|exchange|purchase|receipt|tv|washer|dryer|fridge|laptop|phone)\b/i,
+    /\b(warranty|return|refund|repair|policy|product|appliance|appliances|claim|coverage|broken|defect|defective|replace|exchange|purchase|receipt|bought|tv|television|washer|washing|dryer|fridge|refrigerator|laptop|phone|fan|machine|month|months|year|years|electric|issue|problem|malfunction|damaged|faulty|stopped|not working|doesn't work|does not work|won't turn on|serial)\b/i,
+  /** Topics routed to other practice agents — not product warranty support. */
+  WARRANTY_OFF_TOPIC:
+    /\b(ai news|artificial intelligence|llm|gpt|openai|machine learning|summarize.*news|headline|email|gmail|inbox|draft reply|weather|recipe|politics|homework|math problem|stock price|cryptocurrency|bitcoin)\b/i,
 } as const;

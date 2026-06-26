@@ -1,5 +1,5 @@
 // Internal
-import { isGuardrailReply } from '../guardrails';
+import { isGuardrailReply } from "../guardrails";
 
 export interface NewsSummary {
   readonly title: string;
@@ -9,15 +9,15 @@ export interface NewsSummary {
 
 /** Returns true when value matches the news summary shape. */
 const isNewsSummary = (value: unknown): value is NewsSummary => {
-  if (!value || typeof value !== 'object') {
+  if (!value || typeof value !== "object") {
     return false;
   }
 
   const record = value as Record<string, unknown>;
   return (
-    typeof record.title === 'string' &&
-    typeof record.summary === 'string' &&
-    typeof record.impact === 'string'
+    typeof record.title === "string" &&
+    typeof record.summary === "string" &&
+    typeof record.impact === "string"
   );
 };
 
@@ -64,38 +64,19 @@ const parseNewsSummaryFromContent = (
 };
 
 /**
- * Extracts a structured news summary from assistant message content.
+ * Extracts a structured news summary from this assistant message's content only.
  *
- * State snapshots are ignored when the message already has plain text so a
- * prior turn's structuredResponse cannot replace a guardrail reply.
+ * Run state is intentionally not consulted — backfilling from state duplicates
+ * the final summary on earlier tool-call turns in the same run.
  *
- * @param content - Raw assistant message text.
- * @param stateSnapshot - Optional agent state for the current run.
+ * @param content - Raw assistant message text for the current turn.
  */
 export const parseNewsSummary = (
   content: string | undefined,
-  stateSnapshot?: unknown,
 ): NewsSummary | null => {
   if (isGuardrailReply(content)) {
     return null;
   }
 
-  const fromContent = parseNewsSummaryFromContent(content);
-  if (fromContent) {
-    return fromContent;
-  }
-
-  if (content?.trim()) {
-    return null;
-  }
-
-  const fromState = (
-    stateSnapshot as { structuredResponse?: unknown } | undefined
-  )?.structuredResponse;
-
-  if (isNewsSummary(fromState)) {
-    return fromState;
-  }
-
-  return null;
+  return parseNewsSummaryFromContent(content);
 };

@@ -1,9 +1,10 @@
 // Libs for third party
-import { useLangGraphInterrupt } from "@copilotkit/react-core";
+import { useLangGraphInterrupt } from '@copilotkit/react-core';
 
 // Internal
-import { InterruptReviewCard } from "@/components/interrupt-review-card";
-import { useInterruptDraft } from "@/hooks/use-interrupt-draft";
+import { InterruptReviewCard } from '@/components/interrupt-review-card';
+import { useInterruptDraft } from '@/hooks/use-interrupt-draft';
+import { useChatSession } from '@/providers/chat-session';
 
 interface WarrantyInterruptPayload {
   product?: string;
@@ -18,6 +19,7 @@ interface WarrantyInterruptPayload {
 /** Renders human-in-the-loop approval for high-risk warranty outcomes. */
 export const WarrantyReviewInterrupt = (): null => {
   const { getDraft, setDraft } = useInterruptDraft();
+  const { isHistoricalThread } = useChatSession();
 
   useLangGraphInterrupt<WarrantyInterruptPayload>({
     enabled: ({ eventValue }) =>
@@ -30,15 +32,16 @@ export const WarrantyReviewInterrupt = (): null => {
         <InterruptReviewCard
           title="Warranty approval"
           subtitle={value.action}
+          readOnly={isHistoricalThread}
           badges={
             <>
               <span className="interrupt-card__badge">
-                {value.product ?? "product"}
+                {value.product ?? 'product'}
               </span>
               <span
-                className={`interrupt-card__badge ${value.isUnderWarranty ? "interrupt-card__badge--low" : "interrupt-card__badge--high"}`}
+                className={`interrupt-card__badge ${value.isUnderWarranty ? 'interrupt-card__badge--low' : 'interrupt-card__badge--high'}`}
               >
-                {value.isUnderWarranty ? "in warranty" : "out of warranty"}
+                {value.isUnderWarranty ? 'in warranty' : 'out of warranty'}
               </span>
             </>
           }

@@ -1,13 +1,17 @@
 // Libs for third party
-import { CopilotChat } from "@copilotkit/react-core/v2";
-import { useMemo } from "react";
+import { CopilotChat } from '@copilotkit/react-core/v2';
+import { useMemo } from 'react';
 
 // Internal
-import { GuardrailAssistantMessage } from "@/components/guardrail-assistant-message";
-import { NewsAssistantMessage } from "@/components/news-assistant-message";
-import { ThreadTitleSync } from "@/components/thread-title-sync";
-import { useThreadLockGrace } from "@/hooks/use-thread-lock-grace";
-import { getAgent, type AgentId } from "@/lib/agents";
+import { EmailAssistantMessage } from '@/components/email-assistant-message';
+import { GuardrailAssistantMessage } from '@/components/guardrail-assistant-message';
+import { InterruptAwareChatInput } from '@/components/interrupt-aware-chat-input';
+import { NewsAssistantMessage } from '@/components/news-assistant-message';
+import { ThreadTitleSync } from '@/components/thread-title-sync';
+import { useThreadLockGrace } from '@/hooks/use-thread-lock-grace';
+import { getAgent, type AgentId } from '@/lib/agents';
+import { useChatSession } from '@/providers/chat-session';
+import { useInterruptFeedbackBridge } from '@/providers/interrupt-feedback-bridge';
 
 interface AgentChatProps {
   readonly agentId: AgentId;
@@ -20,7 +24,7 @@ const ASSISTANT_MESSAGE_BY_AGENT: Record<
   typeof NewsAssistantMessage
 > = {
   newsAgent: NewsAssistantMessage,
-  emailAgent: GuardrailAssistantMessage,
+  emailAgent: EmailAssistantMessage,
   warrantyAgent: GuardrailAssistantMessage,
 };
 
@@ -33,12 +37,25 @@ export const AgentChat = ({
   threadId,
 }: AgentChatProps): React.JSX.Element => {
   const agentMeta = getAgent(agentId);
+  const { isHistoricalThread } = useChatSession();
   const { effectiveIsRunning } = useThreadLockGrace(agentId);
+  const { isActive: isInterruptActive, canAcceptChatFeedback } =
+    useInterruptFeedbackBridge();
 
   const chatView = useMemo(
-    () => ({ isRunning: effectiveIsRunning }),
+    () => ({
+      isRunning: effectiveIsRunning,
+      input: InterruptAwareChatInput,
+      autoScroll: true as const,
+    }),
     [effectiveIsRunning],
   );
+
+  const chatInputPlaceholder = isHistoricalThread
+    ? 'Read-only — start a new chat to continue'
+    : isInterruptActive && canAcceptChatFeedback
+      ? 'Describe how to change the draft…'
+      : agentMeta.placeholder;
 
   const messageView = useMemo(
     () => ({ assistantMessage: ASSISTANT_MESSAGE_BY_AGENT[agentId] }),
@@ -49,14 +66,14 @@ export const AgentChat = ({
     <>
       <ThreadTitleSync agentId={agentId} />
       <CopilotChat
-        key={`${agentId}-${sessionKey}-${threadId ?? "new"}`}
+        key={`${agentId}-${sessionKey}-${threadId ?? 'new'}`}
         agentId={agentId}
         threadId={threadId}
         chatView={chatView}
         messageView={messageView}
         labels={{
           welcomeMessageText: agentMeta.welcomeMessage,
-          chatInputPlaceholder: agentMeta.placeholder,
+          chatInputPlaceholder,
           modalHeaderTitle: agentMeta.label,
         }}
       />

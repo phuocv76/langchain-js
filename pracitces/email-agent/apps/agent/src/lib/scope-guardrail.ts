@@ -10,10 +10,29 @@ export interface ScopeGuardrailOptions {
   readonly name: string;
   readonly keywords: RegExp;
   readonly outOfScopeMessage: string;
+  /** Allowlist requires domain keywords; blocklist rejects only explicit off-topic input. */
+  readonly mode?: "allowlist" | "blocklist";
 }
 
 const SHORT_GREETING =
   /^(hi|hello|hey|thanks|thank you|ok|okay|yes|no)[!.?\s]*$/i;
+
+/** Returns true when text lacks domain keywords (short greetings are allowed). */
+export const isMessageOutOfScope = (
+  text: string | undefined,
+  keywords: RegExp,
+): boolean => {
+  if (!text?.trim()) {
+    return false;
+  }
+
+  const trimmed = text.trim();
+  if (SHORT_GREETING.test(trimmed)) {
+    return false;
+  }
+
+  return !keywords.test(trimmed);
+};
 
 /** Extracts plain text from the latest human turn. */
 export const latestHumanText = (
@@ -32,10 +51,10 @@ export const latestHumanText = (
     : JSON.stringify(lastHuman.content ?? "");
 };
 
-/** Returns true when text lacks domain keywords (short greetings are allowed). */
-export const isMessageOutOfScope = (
+/** Returns true when text matches clearly off-topic patterns (greetings allowed). */
+export const isMessageOutOfScopeBlocklist = (
   text: string | undefined,
-  keywords: RegExp,
+  blocklist: RegExp,
 ): boolean => {
   if (!text?.trim()) {
     return false;
@@ -46,7 +65,7 @@ export const isMessageOutOfScope = (
     return false;
   }
 
-  return !keywords.test(trimmed);
+  return blocklist.test(trimmed);
 };
 
 /**
@@ -84,7 +103,12 @@ export const createScopeGuardrailMiddleware = (
       hook: async (state, runtime) => {
         const text = latestHumanText(state.messages ?? []);
 
-        if (!isMessageOutOfScope(text, options.keywords)) {
+        const outOfScope =
+          options.mode === "blocklist"
+            ? isMessageOutOfScopeBlocklist(text, options.keywords)
+            : isMessageOutOfScope(text, options.keywords);
+
+        if (!outOfScope) {
           return;
         }
 
