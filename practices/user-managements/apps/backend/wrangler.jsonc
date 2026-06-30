@@ -1,0 +1,18 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "user-management-backend",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "user-management-db",
+      "database_id": "eb58208d-9063-40e9-8bdf-91ca25920838",
+      "migrations_dir": "../../migrations"
+    }
+  ]
+}

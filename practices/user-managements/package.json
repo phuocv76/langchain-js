@@ -1,0 +1,26 @@
+{
+  "name": "user-management-practice",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "description": "LangChain + LangGraph user management practice — directory CRUD, RAG, human-in-the-loop.",
+  "scripts": {
+    "setup": "node scripts/ensure-pnpm.mjs",
+    "dev:agent": "pnpm --filter @repo/agent dev",
+    "dev:backend": "pnpm --filter @repo/backend dev",
+    "dev:frontend": "pnpm --filter @repo/frontend dev",
+    "dev": "concurrently -n agent,backend,frontend -c blue,yellow,green \"pnpm run dev:agent\" \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
+    "typecheck": "pnpm -r typecheck",
+    "db:apply:local": "pnpm --filter @repo/backend db:apply:local",
+    "db:apply:remote": "pnpm --filter @repo/backend db:apply:remote",
+    "deploy:backend": "pnpm --filter @repo/backend deploy",
+    "deploy:frontend": "pnpm --filter @repo/frontend deploy",
+    "deploy": "pnpm deploy:backend && pnpm deploy:frontend",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,json,md}\" \"MIGRATION.md\" \"DEPLOY.md\" \"README.md\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.6.2"
+  }
+}

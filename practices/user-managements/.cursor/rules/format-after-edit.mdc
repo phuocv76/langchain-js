@@ -1,0 +1,40 @@
+---
+description: Format every edited file before finishing a task
+alwaysApply: true
+---
+
+# Format after edit
+
+After creating or updating any file, **format it before marking the task complete**.
+
+## Workflow
+
+1. Make the required code or doc changes.
+2. Format every file you touched in that task.
+3. Fix any formatting-related linter or editor diagnostics on those files.
+
+## How to format
+
+Prefer an automated formatter when available:
+
+```bash
+# Project format script (if defined)
+pnpm run format
+
+# Prettier (if installed or configured)
+npx prettier --write path/to/changed-file.ts
+```
+
+If no formatter is configured, format manually and match the surrounding file:
+
+- 2-space indentation
+- Trailing newline at end of file
+- No trailing whitespace on lines
+- Consistent semicolon style within the file
+- Import groups and blank lines per the ES6 coding standards rule
+
+## Scope
+
+Applies to all edited files: TypeScript, JavaScript, JSON, Markdown, CSS, and config files.
+
+Never leave edited files unformatted when finishing a task.
