@@ -12,7 +12,7 @@ export const GUARDRAILS = {
 /** Keywords that indicate user-management scope (allowlist). */
 export const GUARDRAIL_KEYWORDS = {
   USER_MANAGEMENT:
-    /\b(user|users|profile|account|admin|member|role|directory|email|name|bio|birth|dob|create|update|delete|list|activate|deactivate|status|policy|knowledge|faq|editable|field|fields|help)\b/i,
+    /\b(user|users|profile|account|admin|member|role|directory|email|name|bio|birth|dob|create|update|delete|list|activate|deactivate|status|policy|knowledge|faq|editable|field|fields|help|invite|invitation|invited|onboard|register|signup|sign-up|remove)\b/i,
 } as const;
 
 /** LangChain tool descriptions. */

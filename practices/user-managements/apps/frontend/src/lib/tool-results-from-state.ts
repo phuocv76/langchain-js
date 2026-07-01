@@ -35,6 +35,21 @@ const isToolMessage = (message: unknown): boolean => {
   return record.id?.at(-1) === 'ToolMessage';
 };
 
+const isHumanMessage = (message: unknown): boolean => {
+  if (!message || typeof message !== 'object') return false;
+  const record = message as SerializedMessage;
+  if (record.type === 'human' || record.role === 'user') return true;
+  return record.id?.at(-1) === 'HumanMessage';
+};
+
+/** Index of the last human message in a LangGraph state transcript. */
+const findLastHumanMessageIndex = (messages: readonly unknown[]): number => {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (isHumanMessage(messages[i])) return i;
+  }
+  return -1;
+};
+
 const readToolName = (message: SerializedMessage): string | null => {
   if (typeof message.name === 'string') return message.name;
   if (typeof message.kwargs?.name === 'string') return message.kwargs.name;
@@ -56,8 +71,12 @@ export const extractToolResultsFromState = (
     ?.messages;
   if (!Array.isArray(messages)) return [];
 
+  const lastHumanIdx = findLastHumanMessageIndex(messages);
+
   const results: ExtractedToolResult[] = [];
-  for (const message of messages) {
+  for (let i = 0; i < messages.length; i += 1) {
+    if (lastHumanIdx >= 0 && i <= lastHumanIdx) continue;
+    const message = messages[i];
     if (!isToolMessage(message)) continue;
     const record = message as SerializedMessage;
     const name = readToolName(record);

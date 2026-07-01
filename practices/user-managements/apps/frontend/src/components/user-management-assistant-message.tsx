@@ -18,8 +18,10 @@ const UserManagementAssistantBody = ({
     slotProps.message,
   );
   const toolResults = extractToolResultsFromState(stateSnapshot);
+  const hasToolCalls = (slotProps.message.toolCalls?.length ?? 0) > 0;
+  const showToolResults = toolResults.length > 0 && hasToolCalls;
 
-  if (!content.trim() && toolResults.length === 0 && !slotProps.toolCallsView) {
+  if (!content.trim() && !showToolResults && !hasToolCalls) {
     return null;
   }
 
@@ -31,7 +33,7 @@ const UserManagementAssistantBody = ({
       toolbar={slotProps.toolbar}
       toolbarVisible={slotProps.toolbarVisible}
     >
-      <ToolResultsPanel results={toolResults} />
+      {showToolResults ? <ToolResultsPanel results={toolResults} /> : null}
       {content.trim() ? (
         <div className="assistant-markdown">{slotProps.markdownRenderer}</div>
       ) : null}

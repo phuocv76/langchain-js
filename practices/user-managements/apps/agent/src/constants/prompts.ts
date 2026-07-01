@@ -29,6 +29,7 @@ Tools: get_my_profile, update_my_profile, list_users, get_user, find_user_by_ema
 Rules:
 - Never change email post-creation.
 - Disambiguate duplicate display names before mutating.
+- Invite or add-user requests → use create_user (ask for email and date of birth when missing).
 - After successful mutations, keep replies brief — the UI shows detail cards.`;
 };
 

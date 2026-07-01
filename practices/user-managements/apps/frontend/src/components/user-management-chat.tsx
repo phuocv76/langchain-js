@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 // Internal
 import { UserManagementAssistantMessage } from '@/components/user-management-assistant-message';
+import { useFocusChatInputOnRunComplete } from '@/hooks/use-focus-chat-input-on-run-complete';
 import { AGENT_ID, MESSAGES } from '@/lib/constants/messages';
 import { useChatSession } from '@/providers/chat-session';
 
@@ -18,6 +19,8 @@ export const UserManagementChat = ({
   threadId,
 }: UserManagementChatProps): React.JSX.Element => {
   const { isHistoricalThread } = useChatSession();
+
+  useFocusChatInputOnRunComplete(AGENT_ID, !isHistoricalThread);
 
   const messageView = useMemo(
     () => ({ assistantMessage: UserManagementAssistantMessage }),
