@@ -4,7 +4,7 @@ import { resolveInterrupt } from '@/lib/interrupts/actions';
 interface InterruptReviewCardProps {
   readonly title: string;
   readonly subtitle?: string;
-  readonly preview: string;
+  readonly preview: React.ReactNode;
   readonly onResolve: (value: string) => void;
 }
 
@@ -26,7 +26,7 @@ export const InterruptReviewCard = ({
         </div>
       </header>
 
-      <pre className="interrupt-card__panel">{preview}</pre>
+      <div className="interrupt-card__preview">{preview}</div>
 
       <footer className="interrupt-card__actions">
         <button

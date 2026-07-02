@@ -3,6 +3,8 @@ import { useLangGraphInterrupt } from '@copilotkit/react-core';
 
 // Internal
 import { InterruptReviewCard } from '@/components/interrupt-review-card';
+import { MutationPreviewPanel } from '@/components/tool-display/mutation-preview-panel';
+import { parseMutationPreview } from '@/lib/mutation-preview-parsers';
 
 interface MutationInterruptPayload {
   action?: string;
@@ -16,6 +18,14 @@ const formatPreview = (preview: unknown): string => {
   return typeof preview === 'string'
     ? preview
     : JSON.stringify(preview, null, 2);
+};
+
+const renderPreview = (preview: unknown): React.ReactNode => {
+  if (parseMutationPreview(preview)) {
+    return <MutationPreviewPanel preview={preview} />;
+  }
+
+  return <pre className="interrupt-card__panel">{formatPreview(preview)}</pre>;
 };
 
 const MUTATION_ACTIONS = new Set([
@@ -34,11 +44,13 @@ export const UserMutationReviewInterrupt = (): null => {
       const value = event.value;
       const actionLabel = (value.action ?? 'mutation').replace(/_/g, ' ');
 
+      const preview = renderPreview(value.preview);
+
       return (
         <InterruptReviewCard
           title={`Confirm ${actionLabel}`}
           subtitle={value.message ?? value.hint}
-          preview={formatPreview(value.preview)}
+          preview={preview}
           onResolve={resolve}
         />
       );

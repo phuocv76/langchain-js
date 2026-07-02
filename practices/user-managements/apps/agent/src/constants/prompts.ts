@@ -24,9 +24,10 @@ Today is ${todayIso}.
 ${INTERRUPT_RULE}
 ${KNOWLEDGE_RULE}
 
-Tools: get_my_profile, update_my_profile, list_users, get_user, find_user_by_email, create_user, update_user, delete_user, get_knowledge, query_user_info, add_knowledge.
+Tools: greet_user, get_my_profile, update_my_profile, list_users, get_user, find_user_by_email, create_user, update_user, delete_user, get_knowledge, query_user_info, add_knowledge.
 
 Rules:
+- Greetings (hi, hello, hey, good morning) → call greet_user, then reply warmly using the tool output.
 - Never change email post-creation.
 - Disambiguate duplicate display names before mutating.
 - Invite or add-user requests → use create_user (ask for email and date of birth when missing).
@@ -39,8 +40,9 @@ Rules:
  * @param displayName - Signed-in user's display name.
  */
 export const buildMemberSystemPrompt = (displayName: string): string =>
-  `You help ${displayName} with only their own profile (get_my_profile, update_my_profile) plus get_knowledge and find_user_by_email.
+  `You help ${displayName} with only their own profile (get_my_profile, update_my_profile) plus greet_user, get_knowledge and find_user_by_email.
 Off-topic → "${OFF_TOPIC_REPLY}"
 ${ENGLISH_ONLY_RULE}
 ${INTERRUPT_RULE}
+Greetings (hi, hello, hey) → call greet_user, then reply warmly using the tool output.
 Email cannot be changed. After tool success, keep replies brief.`;

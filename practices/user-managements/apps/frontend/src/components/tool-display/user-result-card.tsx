@@ -2,87 +2,132 @@
 import { MESSAGES } from '@/lib/constants/messages';
 import type { ClientUser } from '@/lib/tool-output-parsers';
 
-const initials = (name: string): string => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return `${parts[0]![0] ?? ''}${parts[parts.length - 1]![0] ?? ''}`.toUpperCase();
-};
-
 export type UserCardVariant =
   'invited' | 'updated' | 'profile-loaded' | 'profile-updated';
 
 const VARIANT_META: Record<
   UserCardVariant,
-  { badge: string; success: string; tone: 'sky' | 'violet' }
+  { badge: string; success: string | null }
 > = {
   invited: {
     badge: MESSAGES.CARD_INVITED,
     success: MESSAGES.SUCCESS_INVITED,
-    tone: 'sky',
   },
   updated: {
     badge: MESSAGES.CARD_UPDATED,
     success: MESSAGES.SUCCESS_UPDATED,
-    tone: 'violet',
   },
   'profile-loaded': {
     badge: MESSAGES.CARD_PROFILE,
-    success: MESSAGES.SUCCESS_PROFILE,
-    tone: 'sky',
+    success: null,
   },
   'profile-updated': {
     badge: MESSAGES.CARD_PROFILE_UPDATED,
     success: MESSAGES.SUCCESS_PROFILE_UPDATED,
-    tone: 'violet',
   },
 };
 
+export interface UserCardPreview {
+  name: string;
+  email: string;
+  date_of_birth?: string | null;
+  bio?: string | null;
+}
+
 interface UserResultCardProps {
-  readonly user: ClientUser;
+  readonly user?: ClientUser;
+  readonly preview?: UserCardPreview;
   readonly variant: UserCardVariant;
 }
+
+/** Derives an @handle from the email local part. */
+const emailHandle = (email: string): string => {
+  const local = email.split('@')[0]?.trim();
+  return local ? `@${local}` : email;
+};
+
+/** Formats a card footer timestamp (e.g. Updated at 02:50 PM • Jul 2, 2026). */
+const formatCardTimestamp = (epochMs: number): string => {
+  const date = new Date(epochMs);
+  const time = date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  const day = date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  return `Updated at ${time} • ${day}`;
+};
 
 /** Rich card for user tool results (create, update, profile). */
 export const UserResultCard = ({
   user,
+  preview,
   variant,
 }: UserResultCardProps): React.JSX.Element => {
   const meta = VARIANT_META[variant];
-  const joined = new Date(user.created_at).toLocaleString();
+  const display = user ?? preview;
+  if (!display) {
+    throw new Error('UserResultCard requires user or preview.');
+  }
+
+  const isPreview = Boolean(preview && !user);
+  const badge =
+    isPreview && variant === 'invited' ? MESSAGES.CARD_INVITING : meta.badge;
 
   return (
-    <div className={`tool-card tool-card--${meta.tone}`}>
-      <p className="tool-card__badge">{meta.badge}</p>
-      <div className="tool-card__body">
-        <div className="tool-card__avatar" aria-hidden>
-          {initials(user.name)}
+    <div className="tool-card-wrap">
+      <div className="tool-card">
+        <p className="tool-card__badge">{badge}</p>
+
+        <div className="tool-card__body">
+          <div className="tool-card__avatar" aria-hidden>
+            <svg viewBox="0 0 24 24" className="tool-card__avatar-icon">
+              <circle cx="12" cy="8" r="4" fill="currentColor" />
+              <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" fill="currentColor" />
+            </svg>
+          </div>
+
+          <div className="tool-card__details">
+            <p className="tool-card__name">{display.name}</p>
+            <p className="tool-card__handle">{emailHandle(display.email)}</p>
+          </div>
         </div>
-        <div className="tool-card__details">
-          <p className="tool-card__name">{user.name}</p>
-          <p className="tool-card__email">{user.email}</p>
-          <p className="tool-card__meta">
-            {MESSAGES.DOB}: {user.date_of_birth ?? '—'}
+
+        <div className="tool-card__divider" role="presentation" />
+
+        {isPreview ? (
+          <div className="tool-card__meta-list">
+            {preview?.date_of_birth ? (
+              <p className="tool-card__meta">
+                {MESSAGES.DOB}: {preview.date_of_birth}
+              </p>
+            ) : null}
+            {preview?.bio ? (
+              <p className="tool-card__meta">
+                {MESSAGES.BIO}: {preview.bio}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="tool-card__timestamp">
+            {formatCardTimestamp(user!.created_at)}
           </p>
-          <p className="tool-card__meta">
-            {MESSAGES.ROLE_ADMIN}/{MESSAGES.ROLE_MEMBER}:{' '}
-            {user.role === 'admin' ? MESSAGES.ROLE_ADMIN : MESSAGES.ROLE_MEMBER}
-            {' · '}
-            {user.status === 'active'
-              ? MESSAGES.STATUS_ACTIVE
-              : MESSAGES.STATUS_INACTIVE}
-          </p>
-          {user.bio?.trim() ? (
-            <p className="tool-card__meta">
-              {MESSAGES.BIO}: {user.bio.trim()}
-            </p>
-          ) : null}
-          <p className="tool-card__meta">
-            {MESSAGES.JOINED}: {joined}
-          </p>
-        </div>
+        )}
       </div>
-      <p className="tool-card__success">{meta.success}</p>
+
+      {!isPreview && meta.success ? (
+        <p className="tool-card__success">
+          <span aria-hidden className="tool-card__success-icon">
+            ✓
+          </span>
+          {meta.success}
+        </p>
+      ) : null}
     </div>
   );
 };
