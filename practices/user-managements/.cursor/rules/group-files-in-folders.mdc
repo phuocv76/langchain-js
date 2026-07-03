@@ -1,0 +1,42 @@
+---
+description: Organize related files into group folders instead of flat directories
+alwaysApply: true
+---
+
+# Group Files in Folders
+
+Keep source directories organized by **feature/domain group folders** rather than
+a flat pile of files. When adding a new file, place it in the folder for its group;
+create the folder if it does not exist yet.
+
+## Rules
+
+- Every file must live inside a group folder that reflects its concern
+  (e.g. `auth/`, `chat/`, `layout/`, `interrupts/`, `dashboard/`, `tool-display/`).
+- Never leave loose files directly under a broad directory like `components/`,
+  `lib/`, or `hooks/` when a logical group exists or can be created.
+- When a group grows a distinct sub-concern, nest a subfolder
+  (e.g. `chat/messages/` for message renderers).
+- When moving existing files, use `git mv` to preserve history and update all
+  `@/...` import paths.
+
+## Example
+
+```
+// ❌ BAD — flat, ungrouped
+components/
+  login-page.tsx
+  chat-sidebar.tsx
+  thread-history.tsx
+  app-layout.tsx
+
+// ✅ GOOD — grouped by concern
+components/
+  auth/
+    login-page.tsx
+  chat/
+    chat-sidebar.tsx
+    thread-history.tsx
+  layout/
+    app-layout.tsx
+```

@@ -3,7 +3,7 @@ import { CopilotChat } from '@copilotkit/react-core/v2';
 import { useMemo } from 'react';
 
 // Internal
-import { UserManagementAssistantMessage } from '@/components/user-management-assistant-message';
+import { UserManagementAssistantMessage } from '@/components/chat/messages/user-management-assistant-message';
 import { useFocusChatInputOnRunComplete } from '@/hooks/use-focus-chat-input-on-run-complete';
 import { AGENT_ID, MESSAGES } from '@/lib/constants/messages';
 import { useChatSession } from '@/providers/chat-session';
@@ -33,6 +33,10 @@ export const UserManagementChat = ({
       agentId={AGENT_ID}
       threadId={threadId}
       messageView={messageView}
+      input={{
+        showDisclaimer: false,
+        autoFocus: true,
+      }}
       labels={{
         welcomeMessageText:
           'Ask about user profiles, directory listings, or account updates.',

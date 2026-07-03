@@ -1,7 +1,7 @@
 // Internal
-import { ChatSidebar } from '@/components/chat-sidebar';
-import { UserManagementChat } from '@/components/user-management-chat';
-import { UserMutationReviewInterrupt } from '@/components/user-mutation-review-interrupt';
+import { ChatSidebar } from '@/components/chat/chat-sidebar';
+import { UserManagementChat } from '@/components/chat/user-management-chat';
+import { UserMutationReviewInterrupt } from '@/components/interrupts/user-mutation-review-interrupt';
 import { MESSAGES } from '@/lib/constants/messages';
 import { useChatThreadSession } from '@/hooks/use-chat-thread-session';
 import { ChatSessionProvider } from '@/providers/chat-session';

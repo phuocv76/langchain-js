@@ -25,10 +25,14 @@ export const AppShell = ({
       runtimeUrl={COPILOT_RUNTIME_URL}
       agent={AGENT_ID}
       properties={{
-        userId: user.id,
-        userRole: user.role,
-        userName: user.name,
-        apiBaseUrl: USER_API_URL,
+        config: {
+          configurable: {
+            userId: user.id,
+            userRole: user.role,
+            userName: user.name,
+            apiBaseUrl: USER_API_URL,
+          },
+        },
       }}
     >
       {children}

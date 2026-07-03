@@ -1,9 +1,12 @@
 // Internal
-import { AssistantMessageFrame } from '@/components/assistant-message-frame';
-import { createCustomAssistantMessage } from '@/components/custom-assistant-message';
+import { AssistantMessageFrame } from '@/components/chat/messages/assistant-message-frame';
+import { createCustomAssistantMessage } from '@/components/chat/messages/custom-assistant-message';
 import { ToolResultsPanel } from '@/components/tool-display/tool-results-panel';
 import { useResolvedAssistantMessage } from '@/hooks/use-resolved-assistant-message';
-import { extractToolResultsFromState } from '@/lib/tool-results-from-state';
+import {
+  extractToolResultsFromState,
+  turnReferencesTool,
+} from '@/lib/tool-results-from-state';
 
 // Types
 import type { AssistantSlotProps } from '@/types/copilot-assistant-message';
@@ -21,7 +24,19 @@ const UserManagementAssistantBody = ({
   const hasToolCalls = (slotProps.message.toolCalls?.length ?? 0) > 0;
   const showToolResults = toolResults.length > 0 && hasToolCalls;
 
-  if (!content.trim() && !showToolResults && !hasToolCalls) {
+  // When the current turn involves a directory listing, show only the table
+  // and drop the assistant prose so the UI stays clean and easy to scan. We
+  // detect this via `turnReferencesTool`, which matches the pending AI tool
+  // call (not just the completed result) so the summary text never flashes in
+  // before the tool finishes — and we also match the message's own tool calls.
+  const messageListsUsers = (slotProps.message.toolCalls ?? []).some(
+    (call) => (call as { name?: string }).name === 'list_users',
+  );
+  const turnHasUsersTable =
+    messageListsUsers || turnReferencesTool(stateSnapshot, 'list_users');
+  const showMarkdown = content.trim().length > 0 && !turnHasUsersTable;
+
+  if (!showMarkdown && !showToolResults && !hasToolCalls) {
     return null;
   }
 
@@ -34,7 +49,7 @@ const UserManagementAssistantBody = ({
       toolbarVisible={slotProps.toolbarVisible}
     >
       {showToolResults ? <ToolResultsPanel results={toolResults} /> : null}
-      {content.trim() ? (
+      {showMarkdown ? (
         <div className="assistant-markdown">{slotProps.markdownRenderer}</div>
       ) : null}
     </AssistantMessageFrame>

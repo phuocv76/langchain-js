@@ -2,7 +2,7 @@
 import { useLangGraphInterrupt } from '@copilotkit/react-core';
 
 // Internal
-import { InterruptReviewCard } from '@/components/interrupt-review-card';
+import { InterruptReviewCard } from '@/components/interrupts/interrupt-review-card';
 import { MutationPreviewPanel } from '@/components/tool-display/mutation-preview-panel';
 import { parseMutationPreview } from '@/lib/mutation-preview-parsers';
 

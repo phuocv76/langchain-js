@@ -41,6 +41,9 @@ export const MESSAGES = {
   PREVIEW_OLD: 'Current',
   PREVIEW_NEW: 'New',
   NO_CHANGES: 'No field changes detected.',
+  CARD_REVIEW_CHANGES: 'Pending changes',
+  CARD_DELETE: 'Remove user',
+  DELETE_WARNING: 'This user will be permanently removed from the directory.',
 } as const;
 
 export const AGENT_ID = 'userManagementAgent' as const;

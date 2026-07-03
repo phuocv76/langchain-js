@@ -2,8 +2,8 @@
 import { useState } from 'react';
 
 // Internal
-import { AppLayout } from '@/components/app-layout';
-import { LoginPage } from '@/components/login-page';
+import { AppLayout } from '@/components/layout/app-layout';
+import { LoginPage } from '@/components/auth/login-page';
 import { AppShell } from '@/providers/app-shell';
 
 interface AuthUser {
@@ -13,10 +13,9 @@ interface AuthUser {
   role: 'admin' | 'member';
 }
 
-/** Root application — login gate then dashboard / assistant. */
+/** Root application — login gate then chat assistant. */
 export default function App(): React.JSX.Element {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [view, setView] = useState<'dashboard' | 'assistant'>('dashboard');
 
   if (!user) {
     return <LoginPage onLogin={setUser} />;
@@ -24,12 +23,7 @@ export default function App(): React.JSX.Element {
 
   return (
     <AppShell user={user}>
-      <AppLayout
-        user={user}
-        view={view}
-        onViewChange={setView}
-        onSignOut={() => setUser(null)}
-      />
+      <AppLayout user={user} onSignOut={() => setUser(null)} />
     </AppShell>
   );
 }

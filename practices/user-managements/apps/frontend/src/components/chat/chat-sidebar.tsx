@@ -1,5 +1,5 @@
 // Internal
-import { ThreadHistory } from '@/components/thread-history';
+import { ThreadHistory } from '@/components/chat/thread-history';
 import { useClientMounted } from '@/hooks/use-client-mounted';
 
 interface ChatSidebarProps {
