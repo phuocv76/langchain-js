@@ -1,0 +1,9 @@
+{
+  "extends": "@repo/config/typescript/base",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
