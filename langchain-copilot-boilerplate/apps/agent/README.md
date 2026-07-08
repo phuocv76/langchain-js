@@ -35,5 +35,10 @@ src/
 
 ## Environment
 
-Reads from the repo-root `.env` (see `../../.env.example`): `OPENAI_API_KEY`,
-`OPENAI_MODEL`, `AGENT_PORT`, `LANGGRAPH_DEPLOYMENT_URL`, `CORS_ORIGINS`.
+Reads from `apps/agent/.env` (see `.env.example` in this directory):
+`OPENAI_API_KEY`, `OPENAI_MODEL`, `AGENT_PORT`, `LANGGRAPH_DEPLOYMENT_URL`,
+`CORS_ORIGINS`.
+
+For durable chat history, also set `INTELLIGENCE_API_URL`, `INTELLIGENCE_GATEWAY_WS_URL`,
+and `INTELLIGENCE_API_KEY` in this file, plus `NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY`
+in `apps/web/.env`.

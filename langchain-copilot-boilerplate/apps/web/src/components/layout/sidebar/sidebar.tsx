@@ -10,7 +10,36 @@ import { useEffect, useRef, useState } from 'react';
 import { APP_NAME } from '@repo/shared';
 import { cn } from '@repo/ui/cn';
 import { useSidebar } from '@/components/layout/sidebar/sidebar-context';
-import { AGENT_ID } from '@/lib/config';
+import { AGENT_ID, COPILOT_PUBLIC_LICENSE_KEY } from '@/lib/config';
+import { isCopilotIntelligenceConfiguredOnWeb } from '@/lib/copilot/intelligence';
+
+const ThreadHistoryError = ({
+  error,
+}: {
+  error: Error;
+}): React.JSX.Element => {
+  const hasWebLicense = isCopilotIntelligenceConfiguredOnWeb();
+
+  if (!hasWebLicense || !COPILOT_PUBLIC_LICENSE_KEY) {
+    return (
+      <p className="px-3 py-2 text-xs text-muted-foreground">
+        Durable history requires CopilotKit Intelligence. Add{' '}
+        <code className="rounded bg-muted px-1">NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY</code>{' '}
+        to <code className="rounded bg-muted px-1">apps/web/.env</code> and the{' '}
+        <code className="rounded bg-muted px-1">INTELLIGENCE_*</code> vars to{' '}
+        <code className="rounded bg-muted px-1">apps/agent/.env</code> (see each app&apos;s{' '}
+        <code className="rounded bg-muted px-1">.env.example</code>). Restart{' '}
+        <code className="rounded bg-muted px-1">pnpm dev</code> after changes.
+      </p>
+    );
+  }
+
+  return (
+    <p className="px-3 py-2 text-xs text-red-500">
+      Couldn&apos;t load history: {error.message}
+    </p>
+  );
+};
 
 /**
  * Renders the thread list from CopilotKit thread endpoints.
@@ -32,11 +61,7 @@ const ThreadList = (): React.JSX.Element => {
   }
 
   if (error) {
-    return (
-      <p className="px-3 py-2 text-xs text-red-500">
-        Couldn't load history. Connect CopilotKit Intelligence (see .env.example).
-      </p>
-    );
+    return <ThreadHistoryError error={error} />;
   }
 
   if (threads.length === 0) {

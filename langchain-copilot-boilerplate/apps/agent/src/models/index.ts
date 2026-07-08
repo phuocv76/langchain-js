@@ -18,7 +18,7 @@ export const getChatModel = (): ChatOpenAI => {
 
   if (!env.OPENAI_API_KEY) {
     throw new Error(
-      'OPENAI_API_KEY is required to run the agent. Set it in the root .env file.',
+      'OPENAI_API_KEY is required to run the agent. Set it in apps/agent/.env.',
     );
   }
 

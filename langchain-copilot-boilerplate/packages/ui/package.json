@@ -6,7 +6,10 @@
   "description": "Shared UI primitives (shadcn-style) and the cn() helper.",
   "exports": {
     "./cn": "./src/lib/cn.ts",
-    "./button": "./src/components/button.tsx"
+    "./button": "./src/components/button.tsx",
+    "./input": "./src/components/input.tsx",
+    "./label": "./src/components/label.tsx",
+    "./card": "./src/components/card.tsx"
   },
   "scripts": {
     "lint": "eslint .",

@@ -52,9 +52,10 @@ Requirements: Node >= 20 and pnpm (`corepack enable`).
 # 1. Install dependencies
 pnpm install
 
-# 2. Configure environment
-cp .env.example .env
-# then set OPENAI_API_KEY in .env
+# 2. Configure environment (one `.env` per app)
+cp apps/agent/.env.example apps/agent/.env
+cp apps/web/.env.example apps/web/.env
+# then set OPENAI_API_KEY in apps/agent/.env and Firebase keys in apps/web/.env
 
 # 3. Run everything (agent LangGraph + agent API + web) in parallel
 pnpm dev

@@ -1,14 +1,29 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
-  "globalDependencies": [".env", ".env.example"],
+  "globalDependencies": [
+    "apps/agent/.env",
+    "apps/agent/.env.example",
+    "apps/web/.env",
+    "apps/web/.env.example"
+  ],
   "globalEnv": [
     "NODE_ENV",
     "OPENAI_API_KEY",
     "OPENAI_MODEL",
     "LANGGRAPH_DEPLOYMENT_URL",
     "AGENT_PORT",
-    "CORS_ORIGINS"
+    "CORS_ORIGINS",
+    "NEXT_PUBLIC_COPILOT_RUNTIME_URL",
+    "NEXT_PUBLIC_AGENT_ID",
+    "NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY",
+    "NEXT_PUBLIC_FIREBASE_API_KEY",
+    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+    "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+    "NEXT_PUBLIC_FIREBASE_APP_ID",
+    "FIREBASE_PROJECT_ID",
+    "FIREBASE_CLIENT_EMAIL",
+    "FIREBASE_PRIVATE_KEY"
   ],
   "tasks": {
     "dev": {

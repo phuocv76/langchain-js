@@ -1,19 +1,7 @@
 // Internal
-import { ChatView } from '@/components/chat/chat-view';
-import { AppHeader } from '@/components/layout/header/app-header';
-import { Sidebar } from '@/components/layout/sidebar/sidebar';
+import { LoginScreen } from '@/components/auth/login-screen';
 
-/** Home page — ChatGPT-style layout with a history sidebar. */
-const HomePage = (): React.JSX.Element => (
-  <div className="flex h-screen">
-    <Sidebar />
-    <div className="flex min-w-0 flex-1 flex-col">
-      <AppHeader />
-      <main className="min-h-0 flex-1">
-        <ChatView />
-      </main>
-    </div>
-  </div>
-);
+/** Default route — login page for unauthenticated users. */
+const HomePage = (): React.JSX.Element => <LoginScreen />;
 
 export default HomePage;

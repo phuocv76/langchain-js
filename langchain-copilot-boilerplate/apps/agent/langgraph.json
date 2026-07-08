@@ -4,5 +4,5 @@
   "graphs": {
     "defaultAgent": "./src/agents/default-agent/graph.ts:graph"
   },
-  "env": "../../.env"
+  "env": ".env"
 }

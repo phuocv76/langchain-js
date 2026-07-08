@@ -6,6 +6,7 @@ import { PanelLeftOpen } from 'lucide-react';
 // Internal
 import { useSidebar } from '@/components/layout/sidebar/sidebar-context';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
+import { UserMenu } from '@/components/auth/user-menu';
 
 /** Top app bar with the sidebar toggle and theme switcher. */
 export const AppHeader = (): React.JSX.Element => {
@@ -26,7 +27,10 @@ export const AppHeader = (): React.JSX.Element => {
           </button>
         )}
       </div>
-      <ThemeToggle />
+      <div className="flex items-center gap-2">
+        <UserMenu />
+        <ThemeToggle />
+      </div>
     </header>
   );
 };

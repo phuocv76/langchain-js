@@ -30,7 +30,13 @@ src/
 
 ## Environment
 
-Public vars (see repo-root `.env.example`):
+Variables live in **`apps/web/.env`** (see `.env.example` in this directory).
+Next.js loads that file automatically when you run `pnpm dev` from the monorepo root.
 
 - `NEXT_PUBLIC_COPILOT_RUNTIME_URL` — defaults to `http://localhost:4000/copilotkit`.
 - `NEXT_PUBLIC_AGENT_ID` — must match a graph id in `apps/agent/langgraph.json`.
+- `NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY` — public license for sidebar history (Intelligence).
+- `NEXT_PUBLIC_FIREBASE_*` + `FIREBASE_*` — Google Sign-In via Firebase Authentication.
+
+Server-side Intelligence vars (`INTELLIGENCE_*`, `COPILOTKIT_LICENSE_TOKEN`) belong in
+**`apps/agent/.env`**, not here.

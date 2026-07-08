@@ -1,25 +1,19 @@
 'use client';
 
 // Libs for third party
-import { CopilotKit } from '@copilotkit/react-core/v2';
 import { ThemeProvider } from 'next-themes';
 
 // Internal
-import { ThemeAgent } from '@/agents/theme-agent';
-import { SidebarProvider } from '@/components/layout/sidebar/sidebar-context';
-import {
-  AGENT_ID,
-  COPILOT_PUBLIC_LICENSE_KEY,
-  COPILOT_RUNTIME_URL,
-} from '@/lib/config';
+import { AuthProvider } from '@/components/auth/auth-provider';
+import { CopilotKitProvider } from '@/components/providers/copilot-kit-provider';
 
 /**
  * Application providers.
  *
  * - `ThemeProvider` (next-themes) drives light/dark/system via a `class`.
- * - `CopilotKit` connects the UI to the agent runtime.
- * - With `publicLicenseKey` + Intelligence env on the agent, `useThreads`
- *   loads durable, user-scoped history from the Enterprise Intelligence Platform.
+ * - `AuthProvider` manages the email sign-in session.
+ * - `CopilotKitProvider` connects the UI to the agent runtime and forwards
+ *   `x-user-id` / `x-user-name` for Intelligence thread scoping.
  * - `ThemeAgent` registers the client-side `setTheme` frontend tool.
  */
 export const Providers = ({
@@ -33,17 +27,8 @@ export const Providers = ({
     enableSystem
     disableTransitionOnChange
   >
-    <CopilotKit
-      runtimeUrl={COPILOT_RUNTIME_URL}
-      agent={AGENT_ID}
-      publicLicenseKey={COPILOT_PUBLIC_LICENSE_KEY}
-      // REST (multi-route) transport exposes the runtime's thread endpoints,
-      // which power the history sidebar via `useThreads`. The default
-      // single-endpoint transport disables them.
-      useSingleEndpoint={false}
-    >
-      <ThemeAgent />
-      <SidebarProvider>{children}</SidebarProvider>
-    </CopilotKit>
+    <AuthProvider>
+      <CopilotKitProvider>{children}</CopilotKitProvider>
+    </AuthProvider>
   </ThemeProvider>
 );
