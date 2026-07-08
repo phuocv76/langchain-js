@@ -2,7 +2,7 @@
 import { ChatOpenAI } from '@langchain/openai';
 
 // Internal
-import { env } from '../config/env.js';
+import { env } from '@agent/config/env.js';
 
 let cachedModel: ChatOpenAI | undefined;
 

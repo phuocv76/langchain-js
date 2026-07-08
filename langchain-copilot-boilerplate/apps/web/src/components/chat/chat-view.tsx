@@ -1,14 +1,11 @@
 'use client';
 
 // Libs for third party
-import {
-  CopilotChat,
-  CopilotChatConfigurationProvider,
-} from '@copilotkit/react-core/v2';
+import { useCopilotContext } from '@copilotkit/react-core';
+import { CopilotChat } from '@copilotkit/react-core/v2';
 import type { ReactElement } from 'react';
 
 // Internal
-import { useChatHistory } from '@/components/chat/chat-history-context';
 import { SuggestedPrompts } from '@/components/chat/suggested-prompts';
 import { AGENT_ID } from '@/lib/config';
 
@@ -30,30 +27,23 @@ const WelcomeScreen = ({
 /**
  * ChatGPT-style chat surface.
  *
- * A `CopilotChatConfigurationProvider` binds the chat to the active thread from
- * {@link useChatHistory}. `hasExplicitThreadId` is `false` for brand-new chats
- * (so the welcome screen shows) and `true` when an existing thread is selected
- * (so its history is loaded from the runtime). Keying `CopilotChat` by thread id
- * remounts it on switch to run the connect/welcome logic cleanly.
+ * Thread id and history loading are owned by CopilotKit via
+ * {@link useCopilotContext}. Changing `threadId` (sidebar or new chat) triggers
+ * `connectAgent` and loads persisted messages from the runtime.
  */
 export const ChatView = (): React.JSX.Element => {
-  const { activeThreadId, isExplicit } = useChatHistory();
+  const { threadId } = useCopilotContext();
 
   return (
-    <CopilotChatConfigurationProvider
-      agentId={AGENT_ID}
-      threadId={activeThreadId}
-      hasExplicitThreadId={isExplicit}
-      labels={{ chatInputPlaceholder: 'Send a message…' }}
-    >
-      <div className="mx-auto h-full w-full max-w-3xl px-4 py-6">
-        <CopilotChat
-          key={activeThreadId}
-          className="h-full"
-          input={{ showDisclaimer: false, autoFocus: true }}
-          welcomeScreen={WelcomeScreen}
-        />
-      </div>
-    </CopilotChatConfigurationProvider>
+    <div className="mx-auto h-full w-full max-w-3xl px-4 py-6">
+      <CopilotChat
+        key={threadId}
+        agentId={AGENT_ID}
+        labels={{ chatInputPlaceholder: 'Send a message…' }}
+        className="h-full"
+        input={{ showDisclaimer: false, autoFocus: true }}
+        welcomeScreen={WelcomeScreen}
+      />
+    </div>
   );
 };

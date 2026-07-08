@@ -1,24 +1,27 @@
 'use client';
 
 // Libs for third party
-import { useThreads } from '@copilotkit/react-core/v2';
+import { useCopilotContext } from '@copilotkit/react-core';
+import { useAgent, useThreads } from '@copilotkit/react-core/v2';
 import { PanelLeftClose, Plus, MessageSquare, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 // Internal
 import { APP_NAME } from '@repo/shared';
 import { cn } from '@repo/ui/cn';
-import { useChatHistory } from '@/components/chat/chat-history-context';
+import { useSidebar } from '@/components/layout/sidebar/sidebar-context';
 import { AGENT_ID } from '@/lib/config';
 
 /**
- * Renders the thread list from CopilotKit's Intelligence thread endpoints.
+ * Renders the thread list from CopilotKit thread endpoints.
  *
- * Remounted (via `key={refreshKey}`) whenever a run finishes so newly created
- * threads appear without a realtime subscription.
+ * With Enterprise Intelligence configured, threads are durable, named, and
+ * update in realtime. In local-only mode the runtime keeps threads in memory
+ * and this list is refreshed after each agent run (no WebSocket).
  */
 const ThreadList = (): React.JSX.Element => {
   const { threads, isLoading, error } = useThreads({ agentId: AGENT_ID });
-  const { activeThreadId, selectThread, getTitle } = useChatHistory();
+  const { threadId, setThreadId } = useCopilotContext();
 
   if (isLoading) {
     return (
@@ -30,7 +33,9 @@ const ThreadList = (): React.JSX.Element => {
 
   if (error) {
     return (
-      <p className="px-3 py-2 text-xs text-red-500">Couldn’t load history.</p>
+      <p className="px-3 py-2 text-xs text-red-500">
+        Couldn't load history. Connect CopilotKit Intelligence (see .env.example).
+      </p>
     );
   }
 
@@ -45,13 +50,13 @@ const ThreadList = (): React.JSX.Element => {
   return (
     <ul className="space-y-0.5">
       {threads.map((thread) => {
-        const isActive = thread.id === activeThreadId;
-        const label = getTitle(thread.id) ?? thread.name ?? 'New conversation';
+        const isActive = thread.id === threadId;
+        const label = thread.name ?? 'New conversation';
         return (
           <li key={thread.id}>
             <button
               type="button"
-              onClick={() => selectThread(thread.id)}
+              onClick={() => setThreadId(thread.id)}
               title={label}
               className={cn(
                 'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
@@ -68,9 +73,55 @@ const ThreadList = (): React.JSX.Element => {
   );
 };
 
+/**
+ * Renders {@link ThreadList} only after mount.
+ *
+ * `useThreads` relies on `useSyncExternalStore` without a server snapshot, which
+ * throws during SSR ("Missing getServerSnapshot"). Deferring to the client
+ * keeps the initial server render safe.
+ */
+const ThreadListClientOnly = ({
+  refreshKey,
+}: {
+  refreshKey: number;
+}): React.JSX.Element | null => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <p className="px-3 py-2 text-xs text-muted-foreground">
+        Loading conversations…
+      </p>
+    );
+  }
+
+  return <ThreadList key={refreshKey} />;
+};
+
 /** ChatGPT-style left sidebar: branding, new chat, and conversation history. */
 export const Sidebar = (): React.JSX.Element | null => {
-  const { sidebarOpen, toggleSidebar, newChat, refreshKey } = useChatHistory();
+  const { sidebarOpen, toggleSidebar } = useSidebar();
+  const { setThreadId } = useCopilotContext();
+  const { agent } = useAgent({ agentId: AGENT_ID });
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Local (non-Intelligence) runtimes have no realtime thread sync — refetch
+  // the list whenever an agent run finishes so new conversations appear.
+  const wasRunning = useRef(false);
+  useEffect(() => {
+    if (wasRunning.current && !agent.isRunning) {
+      setRefreshKey((k) => k + 1);
+    }
+    wasRunning.current = agent.isRunning;
+  }, [agent.isRunning]);
+
+  const newChat = (): void => {
+    setThreadId(crypto.randomUUID());
+  };
 
   if (!sidebarOpen) {
     return null;
@@ -111,7 +162,7 @@ export const Sidebar = (): React.JSX.Element | null => {
         <p className="px-3 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           History
         </p>
-        <ThreadList key={refreshKey} />
+        <ThreadListClientOnly refreshKey={refreshKey} />
       </nav>
     </aside>
   );

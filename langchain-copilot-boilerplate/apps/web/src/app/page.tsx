@@ -1,7 +1,7 @@
 // Internal
 import { ChatView } from '@/components/chat/chat-view';
-import { AppHeader } from '@/components/layout/app-header';
-import { Sidebar } from '@/components/layout/sidebar';
+import { AppHeader } from '@/components/layout/header/app-header';
+import { Sidebar } from '@/components/layout/sidebar/sidebar';
 
 /** Home page — ChatGPT-style layout with a history sidebar. */
 const HomePage = (): React.JSX.Element => (

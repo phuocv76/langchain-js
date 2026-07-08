@@ -3,9 +3,9 @@ import type { Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
 
 // Internal
-import { chatRequestSchema } from '../schemas/chat.schema.js';
-import { streamChatTokens } from '../services/chat.service.js';
-import { logger } from '../utils/logger.js';
+import { chatRequestSchema } from '@agent/schemas/chat.schema.js';
+import { streamChatTokens } from '@agent/services/chat.service.js';
+import { logger } from '@agent/utils/logger.js';
 
 /**
  * Handles `POST /chat`.

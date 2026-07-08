@@ -21,6 +21,16 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
+  /** Server license token from https://dashboard.operations.copilotkit.ai */
+  COPILOTKIT_LICENSE_TOKEN: z.string().optional(),
+  /** Intelligence platform REST API (cloud or self-hosted). */
+  INTELLIGENCE_API_URL: z.string().url().optional(),
+  /** Intelligence platform WebSocket gateway. */
+  INTELLIGENCE_GATEWAY_WS_URL: z.string().optional(),
+  /** Project-scoped runtime API key (server-side only). */
+  INTELLIGENCE_API_KEY: z.string().optional(),
+  /** Default user id for local Intelligence dev when auth is not wired yet. */
+  INTELLIGENCE_DEV_USER_ID: z.string().default('local-dev-user'),
 });
 
 /** Type of the validated environment. */

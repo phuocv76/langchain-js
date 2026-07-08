@@ -2,7 +2,7 @@
 import type { Context } from 'hono';
 
 // Internal
-import { logger } from '../utils/logger.js';
+import { logger } from '@agent/utils/logger.js';
 
 /** Central error handler mapping thrown errors to JSON responses. */
 export const errorHandler = (err: Error, c: Context): Response => {

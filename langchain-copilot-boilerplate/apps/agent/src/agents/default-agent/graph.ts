@@ -4,9 +4,9 @@ import { MemorySaver } from '@langchain/langgraph';
 import { createAgent } from 'langchain';
 
 // Internal
-import { getChatModel } from '../../models/index.js';
-import { DEFAULT_AGENT_SYSTEM_PROMPT } from '../../prompts/default-agent.prompt.js';
-import { tools } from '../../tools/index.js';
+import { getChatModel } from '@agent/models/index.js';
+import { DEFAULT_AGENT_SYSTEM_PROMPT } from '@agent/prompts/default-agent.prompt.js';
+import { tools } from '@agent/tools/index.js';
 
 /** Builds a ReAct-style conversational agent with CopilotKit streaming support. */
 const buildDefaultAgent = () =>

@@ -1,13 +1,9 @@
 // Libs for third party
-import {
-  CopilotRuntime,
-  createCopilotRuntimeHandler,
-} from '@copilotkit/runtime/v2';
-import { LangGraphAgent } from '@copilotkit/runtime/langgraph';
+import { createCopilotRuntimeHandler } from '@copilotkit/runtime/v2';
 
 // Internal
-import { env } from './config/env.js';
-import { AGENT_REGISTRY } from './graphs/registry.js';
+import { env } from '@agent/config/env.js';
+import { createCopilotRuntime } from '@agent/config/intelligence.js';
 
 const BASE_PATH = '/copilotkit';
 
@@ -20,14 +16,7 @@ const BASE_PATH = '/copilotkit';
 export const createCopilotKitHandler = (
   deploymentUrl: string,
 ): ((request: Request) => Promise<Response>) => {
-  const agents = Object.fromEntries(
-    AGENT_REGISTRY.map((agent) => [
-      agent.id,
-      new LangGraphAgent({ deploymentUrl, graphId: agent.graphId }),
-    ]),
-  );
-
-  const runtime = new CopilotRuntime({ agents });
+  const runtime = createCopilotRuntime(deploymentUrl);
 
   const multiRouteHandler = createCopilotRuntimeHandler({
     runtime,

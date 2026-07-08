@@ -5,7 +5,8 @@
     "outDir": "dist",
     "noEmit": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@agent/*": ["./src/*"]
     }
   },
   "include": ["src/**/*.ts"],

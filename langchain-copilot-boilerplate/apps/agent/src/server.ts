@@ -5,12 +5,12 @@ import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
 
 // Internal
-import { corsOrigins, env } from './config/env.js';
-import { handleCopilotKitRequest } from './copilotkit.js';
-import { errorHandler } from './middleware/error.js';
-import { chatRoute } from './routes/chat.route.js';
-import { healthRoute } from './routes/health.route.js';
-import { logger } from './utils/logger.js';
+import { corsOrigins, env } from '@agent/config/env.js';
+import { handleCopilotKitRequest } from '@agent/copilotkit.js';
+import { errorHandler } from '@agent/middleware/error.js';
+import { chatRoute } from '@agent/routes/chat.route.js';
+import { healthRoute } from '@agent/routes/health.route.js';
+import { logger } from '@agent/utils/logger.js';
 
 const app = new Hono();
 

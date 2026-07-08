@@ -13,7 +13,7 @@ import { z } from 'zod';
  * Runs entirely in the browser via next-themes — no round trip to the graph.
  */
 export const ThemeAgent = (): null => {
-  const { setTheme } = useTheme();
+  const { setTheme, theme: currentTheme } = useTheme();
 
   useFrontendTool(
     {
@@ -28,11 +28,15 @@ export const ThemeAgent = (): null => {
           .describe('The theme to apply.'),
       }),
       handler: async ({ theme }): Promise<string> => {
+        if (currentTheme === theme) {
+          return `The theme is already ${theme}.`;
+        }
+
         setTheme(theme);
         return `Theme changed to ${theme}.`;
       },
     },
-    [setTheme],
+    [setTheme, currentTheme],
   );
 
   return null;

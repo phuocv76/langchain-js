@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 
 // Internal
-import { handleHealth } from '../controllers/health.controller.js';
+import { handleHealth } from '@agent/controllers/health.controller.js';
 
 /** `GET /health` — liveness probe. */
 export const healthRoute = new Hono().get('/', handleHealth);

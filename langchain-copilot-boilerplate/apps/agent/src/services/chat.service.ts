@@ -8,7 +8,7 @@ import {
 } from '@langchain/core/messages';
 
 // Internal
-import { compileWithMemory } from '../agents/default-agent/index.js';
+import { compileWithMemory } from '@agent/agents/default-agent/index.js';
 
 let cachedGraph: ReturnType<typeof compileWithMemory> | undefined;
 
