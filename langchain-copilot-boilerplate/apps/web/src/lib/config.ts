@@ -14,5 +14,10 @@ export const COPILOT_RUNTIME_URL: string =
  * Public license key for Enterprise Intelligence features (thread history,
  * realtime sync). Get one at https://dashboard.operations.copilotkit.ai
  */
+const rawCopilotPublicLicenseKey =
+  process.env.NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY?.trim();
+
 export const COPILOT_PUBLIC_LICENSE_KEY: string | undefined =
-  process.env.NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY;
+  rawCopilotPublicLicenseKey?.startsWith('ck_pub_')
+    ? rawCopilotPublicLicenseKey
+    : undefined;

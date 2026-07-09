@@ -3,23 +3,11 @@ import { CopilotKitStateAnnotation } from '@copilotkit/sdk-js/langgraph';
 import { Annotation } from '@langchain/langgraph';
 
 /**
- * Example custom state for the default agent.
- *
- * The current agent uses `createAgent` with its built-in message state, so this
- * annotation is NOT wired in by default. It is provided as a starting point for
- * when you migrate to a hand-built `StateGraph` and need domain fields alongside
- * the CopilotKit channels.
- *
- * Usage sketch:
- *   const graph = new StateGraph(DefaultAgentState) ... .compile();
+ * State shared between the CopilotKit frontend and the LangGraph agent.
+ * `copilotkit` and `messages` are required by the CopilotKit middleware.
  */
-export const DefaultAgentState = Annotation.Root({
+export const DefaultAgentStateSchema = Annotation.Root({
   ...CopilotKitStateAnnotation.spec,
-  // Example domain field — accumulates across turns.
-  scratchpad: Annotation<string[]>({
-    reducer: (current, next) => current.concat(next),
-    default: () => [],
-  }),
 });
 
-export type DefaultAgentStateType = typeof DefaultAgentState.State;
+export type DefaultAgentStateType = typeof DefaultAgentStateSchema.State;

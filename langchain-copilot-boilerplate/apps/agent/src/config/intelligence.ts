@@ -14,12 +14,28 @@ const buildAgents = (deploymentUrl: string) =>
     ]),
   );
 
+const a2uiConfig = {
+  injectA2UITool: true,
+} as const;
+
 const isIntelligenceConfigured = (): boolean =>
   Boolean(
     env.INTELLIGENCE_API_URL &&
       env.INTELLIGENCE_GATEWAY_WS_URL &&
       env.INTELLIGENCE_API_KEY,
   );
+
+const decodeHeaderValue = (value: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
 
 /**
  * Resolves the signed-in user for Intelligence platform thread scoping.
@@ -32,10 +48,11 @@ const identifyIntelligenceUser = async (
   request: Request,
 ): Promise<{ id: string; name: string }> => {
   const id =
-    request.headers.get('x-user-id') ??
+    decodeHeaderValue(request.headers.get('x-user-id')) ??
     env.INTELLIGENCE_DEV_USER_ID ??
     'local-dev-user';
-  const name = request.headers.get('x-user-name') ?? 'Local User';
+  const name =
+    decodeHeaderValue(request.headers.get('x-user-name')) ?? 'Local User';
   return { id, name };
 };
 
@@ -50,7 +67,7 @@ export const createCopilotRuntime = (deploymentUrl: string): CopilotRuntime => {
   const agents = buildAgents(deploymentUrl);
 
   if (!isIntelligenceConfigured()) {
-    return new CopilotRuntime({ agents });
+    return new CopilotRuntime({ agents, a2ui: a2uiConfig });
   }
 
   const intelligence = new CopilotKitIntelligence({
@@ -61,6 +78,7 @@ export const createCopilotRuntime = (deploymentUrl: string): CopilotRuntime => {
 
   return new CopilotRuntime({
     agents,
+    a2ui: a2uiConfig,
     intelligence,
     identifyUser: identifyIntelligenceUser,
     generateThreadNames: true,

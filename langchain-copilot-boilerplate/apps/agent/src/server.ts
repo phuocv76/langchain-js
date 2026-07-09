@@ -20,7 +20,14 @@ app.use(
   cors({
     origin: corsOrigins,
     allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      // CopilotKit client + Intelligence thread scoping (see copilot-kit-provider.tsx).
+      'X-CopilotCloud-Public-Api-Key',
+      'x-user-id',
+      'x-user-name',
+    ],
   }),
 );
 

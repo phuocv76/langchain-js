@@ -25,6 +25,13 @@ export interface AgentSessionContext {
   readonly [key: string]: unknown;
 }
 
+/** Authenticated application user shared with the agent as CopilotKit state. */
+export interface AgentUserProfile {
+  readonly userId: string;
+  readonly userName: string;
+  readonly userEmail?: string;
+}
+
 /** Request body for the plain `POST /chat` endpoint. */
 export interface ChatRequest {
   readonly message: string;
