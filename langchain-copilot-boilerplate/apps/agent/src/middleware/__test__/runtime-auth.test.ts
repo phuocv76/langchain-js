@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Hono } from 'hono';
 
-import { createRuntimeSecretMiddleware } from './runtime-auth.js';
+import { createRuntimeSecretMiddleware } from '../runtime-auth.js';
 
 const SECRET = '0123456789abcdef0123456789abcdef';
 

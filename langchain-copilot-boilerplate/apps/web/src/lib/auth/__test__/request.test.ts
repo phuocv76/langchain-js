@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { isTrustedRequestOrigin } from './request.js';
+import { isTrustedRequestOrigin } from '../request.js';
 
 describe('request origin validation', () => {
   it('accepts same-origin browser requests', () => {

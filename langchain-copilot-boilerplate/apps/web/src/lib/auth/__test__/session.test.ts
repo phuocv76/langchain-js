@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import {
   createSessionFromFirebase,
   isRecentFirebaseSignIn,
-} from './session.js';
+} from '../session.js';
 
 describe('Firebase session helpers', () => {
   it('maps verified Firebase claims to the application session', () => {

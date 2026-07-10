@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { envSchema } from './env.js';
+import { envSchema } from '../env.js';
 
 describe('agent environment schema', () => {
   it('accepts local defaults', () => {

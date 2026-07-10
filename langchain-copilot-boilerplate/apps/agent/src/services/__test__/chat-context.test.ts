@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { buildRestCopilotKitState } from './chat-context.js';
+import { buildRestCopilotKitState } from '../chat-context.js';
 
 describe('REST CopilotKit context adapter', () => {
   it('omits empty context', () => {
