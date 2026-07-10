@@ -26,6 +26,13 @@ export const getChatModel = (): ChatOpenAI => {
     apiKey: env.OPENAI_API_KEY,
     model: env.OPENAI_MODEL,
     streaming: true,
+    // GPT-5 models can spend significant time reasoning before streaming. This
+    // is deliberately configurable for tasks where deeper reasoning matters.
+    reasoning: { effort: env.OPENAI_REASONING_EFFORT },
+    maxTokens: env.OPENAI_MAX_OUTPUT_TOKENS,
+    // The system prompt and tool definitions are stable across conversations;
+    // this key lets the provider reuse that prefix when prompt caching applies.
+    promptCacheKey: 'default-agent-v1',
     // Fail promptly on a transient provider issue rather than stacking retries
     // behind an already slow chat request. Adjust these through the environment
     // if the deployment needs a different reliability/latency trade-off.

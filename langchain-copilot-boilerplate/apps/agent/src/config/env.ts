@@ -38,6 +38,10 @@ export const envSchema = z
       .default('http://localhost:3000'),
     OPENAI_API_KEY: optionalSecret,
     OPENAI_MODEL: z.string().min(1).default('gpt-5.4-mini'),
+    /** Lower reasoning effort improves time-to-first-token for chat workloads. */
+    OPENAI_REASONING_EFFORT: z.enum(['low', 'medium', 'high']).default('low'),
+    /** Caps response length while allowing callers to opt into longer answers. */
+    OPENAI_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(768),
     /** Bound provider waits so a failed request does not block the chat stream. */
     OPENAI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(45_000),
     /** One retry keeps transient-error recovery without multiplying latency. */
