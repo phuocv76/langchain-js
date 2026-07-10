@@ -38,6 +38,10 @@ export const envSchema = z
       .default('http://localhost:3000'),
     OPENAI_API_KEY: optionalSecret,
     OPENAI_MODEL: z.string().min(1).default('gpt-5.4-mini'),
+    /** Bound provider waits so a failed request does not block the chat stream. */
+    OPENAI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(45_000),
+    /** One retry keeps transient-error recovery without multiplying latency. */
+    OPENAI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(1),
     /** Shared server-to-server secret used by the Next.js CopilotKit proxy. */
     COPILOT_RUNTIME_SECRET: optionalSecret.pipe(z.string().min(32).optional()),
     /** Server license token from https://dashboard.operations.copilotkit.ai */

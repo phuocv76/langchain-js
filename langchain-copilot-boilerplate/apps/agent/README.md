@@ -30,7 +30,7 @@ src/
   config/env.ts          Zod-validated environment
   agents/default-agent/  graph.ts (createAgent), state.ts, index.ts
   graphs/registry.ts     agent registry for the runtime
-  tools/                 greeting.tool.ts + index.ts
+  tools/                 registered agent tools
   prompts/               system prompts
   models/                ChatOpenAI singleton
   routes/ controllers/ services/ schemas/ middleware/ utils/
@@ -39,7 +39,8 @@ src/
 ## Environment
 
 Reads from `apps/agent/.env` (see `.env.example` in this directory):
-`OPENAI_API_KEY`, `OPENAI_MODEL`, `AGENT_PORT`, `LANGGRAPH_DEPLOYMENT_URL`,
+`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_REQUEST_TIMEOUT_MS`,
+`OPENAI_MAX_RETRIES`, `AGENT_PORT`, `LANGGRAPH_DEPLOYMENT_URL`,
 `CORS_ORIGINS`, and (in production) `COPILOT_RUNTIME_SECRET`.
 
 For durable chat history, also set `INTELLIGENCE_API_URL`, `INTELLIGENCE_GATEWAY_WS_URL`,

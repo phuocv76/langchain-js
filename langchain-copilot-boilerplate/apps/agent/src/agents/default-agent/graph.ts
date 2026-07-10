@@ -1,7 +1,7 @@
 // Libs for third party
 import { createCopilotkitMiddleware } from '@copilotkit/sdk-js/langgraph';
 import { MemorySaver } from '@langchain/langgraph';
-import { createAgent, createMiddleware } from 'langchain';
+import { createAgent, summarizationMiddleware } from 'langchain';
 
 // Internal
 import { DefaultAgentStateSchema } from '@agent/agents/default-agent/state.js';
@@ -13,77 +13,28 @@ const copilotkitMiddleware = createCopilotkitMiddleware({
   exposeState: false,
 });
 
-const getUserNameFromCopilotContext = (
-  state: Record<string, unknown>,
-): string | undefined => {
-  const context = (
-    state.copilotkit as
-      { context?: Array<{ description?: string; value?: string }> } | undefined
-  )?.context;
-
-  const userContext = context?.find(
-    (item) => item.description === 'Signed-in application user profile',
-  );
-
-  if (!userContext?.value) {
-    return undefined;
-  }
-
-  try {
-    const parsed = JSON.parse(userContext.value) as { userName?: unknown };
-    return typeof parsed.userName === 'string'
-      ? parsed.userName.trim()
-      : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-const greetingStateMiddleware = createMiddleware({
-  name: 'GreetingStateMiddleware',
-  stateSchema: DefaultAgentStateSchema,
-  wrapToolCall: async (request, handler) => {
-    if (request.toolCall.name !== 'greeting') {
-      return handler(request);
-    }
-
-    const args =
-      typeof request.toolCall.args === 'object' &&
-      request.toolCall.args !== null
-        ? request.toolCall.args
-        : {};
-    const requestedName =
-      'name' in args && typeof args.name === 'string' ? args.name.trim() : '';
-    const stateName = getUserNameFromCopilotContext(request.state);
-
-    if (requestedName || !stateName) {
-      return handler(request);
-    }
-
-    return handler({
-      ...request,
-      toolCall: {
-        ...request.toolCall,
-        args: {
-          ...args,
-          name: stateName,
-        },
-      },
-    });
-  },
-});
-
 /** Builds a ReAct-style conversational agent with CopilotKit streaming support. */
-const buildDefaultAgent = () =>
-  createAgent({
-    model: getChatModel(),
+const buildDefaultAgent = () => {
+  const model = getChatModel();
+
+  return createAgent({
+    model,
     tools,
     stateSchema: DefaultAgentStateSchema,
     systemPrompt: DEFAULT_AGENT_SYSTEM_PROMPT,
-    // `copilotkitMiddleware` bridges the graph to the CopilotKit runtime so the
-    // frontend receives streamed tokens and tool-call events.
-    middleware: [greetingStateMiddleware, copilotkitMiddleware],
+    // Keep durable threads from sending an ever-growing prompt. Summarization
+    // only runs after eight turns, then preserves the most recent four turns.
+    middleware: [
+      summarizationMiddleware({
+        model,
+        trigger: { messages: 16 },
+        keep: { messages: 8 },
+      }),
+      // Bridges the graph to CopilotKit for streamed tokens and client tools.
+      copilotkitMiddleware,
+    ],
   });
+};
 
 const defaultAgent = buildDefaultAgent();
 

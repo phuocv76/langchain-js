@@ -26,6 +26,11 @@ export const getChatModel = (): ChatOpenAI => {
     apiKey: env.OPENAI_API_KEY,
     model: env.OPENAI_MODEL,
     streaming: true,
+    // Fail promptly on a transient provider issue rather than stacking retries
+    // behind an already slow chat request. Adjust these through the environment
+    // if the deployment needs a different reliability/latency trade-off.
+    timeout: env.OPENAI_REQUEST_TIMEOUT_MS,
+    maxRetries: env.OPENAI_MAX_RETRIES,
   });
 
   return cachedModel;

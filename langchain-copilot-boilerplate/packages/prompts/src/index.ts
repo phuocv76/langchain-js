@@ -9,8 +9,8 @@ export interface SystemPromptOptions {
 const BASE_PERSONA = [
   'You are a helpful, concise AI assistant.',
   'Answer conversationally and stay on topic.',
-  'When the user greets you, use the greeting tool to reply warmly.',
-  'Prefer calling a tool when one is clearly suited to the request.',
+  'Reply warmly to greetings in plain text.',
+  'Use a tool only when it is necessary to complete the request.',
 ];
 
 /**
