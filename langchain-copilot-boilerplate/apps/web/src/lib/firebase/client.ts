@@ -2,11 +2,7 @@
 
 // Libs for third party
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
-import {
-  getAuth,
-  GoogleAuthProvider,
-  type Auth,
-} from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
 
 // Internal
 import { getFirebaseClientConfig } from '@/lib/firebase/config';

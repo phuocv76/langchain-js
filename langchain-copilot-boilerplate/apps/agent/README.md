@@ -5,11 +5,11 @@ REST surface.
 
 ## Endpoints
 
-| Method | Path          | Description                                         |
-| ------ | ------------- | --------------------------------------------------- |
-| POST   | `/copilotkit` | CopilotKit v2 runtime (proxies to the LangGraph server). |
+| Method | Path          | Description                                                |
+| ------ | ------------- | ---------------------------------------------------------- |
+| POST   | `/copilotkit` | CopilotKit v2 runtime (proxies to the LangGraph server).   |
 | POST   | `/chat`       | Streaming chat over Server-Sent Events (in-process graph). |
-| GET    | `/health`     | Liveness probe.                                     |
+| GET    | `/health`     | Liveness probe.                                            |
 
 ## Processes
 
@@ -17,6 +17,9 @@ REST surface.
 
 - `dev:graph` — `langgraphjs dev` on `:2024`, serving graphs from `langgraph.json`.
 - `dev:api` — the Hono server on `AGENT_PORT` (default `4000`).
+
+`pnpm build` bundles the Hono runtime to `dist/server.js`; `pnpm start` runs that
+artifact with plain Node. The LangGraph service remains a separate deployment.
 
 ## Layout
 
@@ -37,7 +40,7 @@ src/
 
 Reads from `apps/agent/.env` (see `.env.example` in this directory):
 `OPENAI_API_KEY`, `OPENAI_MODEL`, `AGENT_PORT`, `LANGGRAPH_DEPLOYMENT_URL`,
-`CORS_ORIGINS`.
+`CORS_ORIGINS`, and (in production) `COPILOT_RUNTIME_SECRET`.
 
 For durable chat history, also set `INTELLIGENCE_API_URL`, `INTELLIGENCE_GATEWAY_WS_URL`,
 and `INTELLIGENCE_API_KEY` in this file, plus `NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY`

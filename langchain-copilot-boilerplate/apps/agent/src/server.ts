@@ -8,6 +8,7 @@ import { logger as honoLogger } from 'hono/logger';
 import { corsOrigins, env } from '@agent/config/env.js';
 import { handleCopilotKitRequest } from '@agent/copilotkit.js';
 import { errorHandler } from '@agent/middleware/error.js';
+import { requireRuntimeSecret } from '@agent/middleware/runtime-auth.js';
 import { chatRoute } from '@agent/routes/chat.route.js';
 import { healthRoute } from '@agent/routes/health.route.js';
 import { logger } from '@agent/utils/logger.js';
@@ -32,6 +33,12 @@ app.use(
 );
 
 app.onError(errorHandler);
+
+// Agent execution is server-to-server in production. Health remains public.
+app.use('/chat', requireRuntimeSecret);
+app.use('/chat/*', requireRuntimeSecret);
+app.use('/copilotkit', requireRuntimeSecret);
+app.use('/copilotkit/*', requireRuntimeSecret);
 
 // REST endpoints.
 app.route('/health', healthRoute);

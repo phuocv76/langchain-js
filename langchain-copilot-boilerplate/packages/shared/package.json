@@ -13,9 +13,6 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@repo/types": "workspace:*"
-  },
   "devDependencies": {
     "@repo/config": "workspace:*",
     "eslint": "^9.17.0",

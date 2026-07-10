@@ -18,8 +18,7 @@ const getUserNameFromCopilotContext = (
 ): string | undefined => {
   const context = (
     state.copilotkit as
-      | { context?: Array<{ description?: string; value?: string }> }
-      | undefined
+      { context?: Array<{ description?: string; value?: string }> } | undefined
   )?.context;
 
   const userContext = context?.find(
@@ -49,7 +48,8 @@ const greetingStateMiddleware = createMiddleware({
     }
 
     const args =
-      typeof request.toolCall.args === 'object' && request.toolCall.args !== null
+      typeof request.toolCall.args === 'object' &&
+      request.toolCall.args !== null
         ? request.toolCall.args
         : {};
     const requestedName =

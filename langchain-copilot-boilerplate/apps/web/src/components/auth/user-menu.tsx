@@ -2,6 +2,7 @@
 
 // Libs for third party
 import { LogOut } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -35,9 +36,11 @@ export const UserMenu = (): React.JSX.Element | null => {
   return (
     <div className="flex items-center gap-2">
       {user.photoURL ? (
-        <img
+        <Image
           src={user.photoURL}
           alt=""
+          width={28}
+          height={28}
           className="hidden h-7 w-7 rounded-full sm:block"
         />
       ) : null}

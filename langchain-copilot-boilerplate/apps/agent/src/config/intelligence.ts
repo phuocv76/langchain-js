@@ -21,8 +21,8 @@ const a2uiConfig = {
 const isIntelligenceConfigured = (): boolean =>
   Boolean(
     env.INTELLIGENCE_API_URL &&
-      env.INTELLIGENCE_GATEWAY_WS_URL &&
-      env.INTELLIGENCE_API_KEY,
+    env.INTELLIGENCE_GATEWAY_WS_URL &&
+    env.INTELLIGENCE_API_KEY,
   );
 
 const decodeHeaderValue = (value: string | null): string | null => {
@@ -85,5 +85,3 @@ export const createCopilotRuntime = (deploymentUrl: string): CopilotRuntime => {
     licenseToken: env.COPILOTKIT_LICENSE_TOKEN,
   });
 };
-
-export const intelligenceEnabled = isIntelligenceConfigured();

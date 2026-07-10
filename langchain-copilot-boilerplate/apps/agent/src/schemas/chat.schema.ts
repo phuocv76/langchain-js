@@ -7,5 +7,3 @@ export const chatRequestSchema = z.object({
   threadId: z.string().optional(),
   context: z.record(z.string(), z.unknown()).optional(),
 });
-
-export type ChatRequestInput = z.infer<typeof chatRequestSchema>;

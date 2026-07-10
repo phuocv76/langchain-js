@@ -78,8 +78,8 @@ export const LoginForm = (): React.JSX.Element => {
       <CardContent className="space-y-4">
         {!firebaseConfigured ? (
           <p className="rounded-md border border-amber-300/40 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-100">
-            Firebase is not configured. Add the `NEXT_PUBLIC_FIREBASE_*` variables
-            to `apps/web/.env` (see `apps/web/.env.example`).
+            Firebase is not configured. Add the `NEXT_PUBLIC_FIREBASE_*`
+            variables to `apps/web/.env` (see `apps/web/.env.example`).
           </p>
         ) : null}
 

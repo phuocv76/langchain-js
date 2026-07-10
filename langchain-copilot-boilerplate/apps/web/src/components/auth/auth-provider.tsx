@@ -1,10 +1,7 @@
 'use client';
 
 // Libs for third party
-import {
-  signInWithPopup,
-  signOut,
-} from 'firebase/auth';
+import { signInWithPopup, signOut } from 'firebase/auth';
 import {
   createContext,
   useCallback,
@@ -17,10 +14,7 @@ import {
 // Internal
 import type { AuthSession } from '@/lib/auth/validation';
 import { isFirebaseConfigured } from '@/lib/firebase/config';
-import {
-  getFirebaseAuth,
-  getGoogleProvider,
-} from '@/lib/firebase/client';
+import { getFirebaseAuth, getGoogleProvider } from '@/lib/firebase/client';
 
 type AuthContextValue = {
   user: AuthSession | null;
@@ -32,7 +26,9 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const establishServerSession = async (idToken: string): Promise<AuthSession> => {
+const establishServerSession = async (
+  idToken: string,
+): Promise<AuthSession> => {
   const response = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -40,13 +36,23 @@ const establishServerSession = async (idToken: string): Promise<AuthSession> => 
   });
 
   if (!response.ok) {
-    const data = (await response.json().catch(() => null)) as
-      | { error?: string }
-      | null;
+    const data = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
     throw new Error(data?.error ?? 'Unable to sign in');
   }
 
   const data = (await response.json()) as { user: AuthSession };
+  return data.user;
+};
+
+const fetchServerSession = async (): Promise<AuthSession | null> => {
+  const response = await fetch('/api/auth/session', { cache: 'no-store' });
+  if (!response.ok) {
+    return null;
+  }
+
+  const data = (await response.json()) as { user: AuthSession | null };
   return data.user;
 };
 
@@ -59,32 +65,36 @@ export const AuthProvider = ({
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshSession = useCallback(async (): Promise<void> => {
-    const response = await fetch('/api/auth/session');
-
-    if (!response.ok) {
-      setUser(null);
-      return;
-    }
-
-    const data = (await response.json()) as { user: AuthSession | null };
-    setUser(data.user);
+    setUser(await fetchServerSession());
   }, []);
 
   useEffect(() => {
-    void refreshSession().finally(() => {
-      setIsLoading(false);
+    let active = true;
+
+    void fetchServerSession().then((session) => {
+      if (active) {
+        setUser(session);
+        setIsLoading(false);
+      }
     });
-  }, [refreshSession]);
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const signInWithGoogle = useCallback(async (): Promise<void> => {
     if (!isFirebaseConfigured()) {
-      throw new Error('Firebase is not configured. Check your environment variables.');
+      throw new Error(
+        'Firebase is not configured. Check your environment variables.',
+      );
     }
 
     const auth = getFirebaseAuth();
     const credential = await signInWithPopup(auth, getGoogleProvider());
     const idToken = await credential.user.getIdToken();
     const session = await establishServerSession(idToken);
+    await signOut(auth);
     setUser(session);
   }, []);
 

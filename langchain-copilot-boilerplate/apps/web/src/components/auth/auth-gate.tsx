@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 
 // Internal
 import { useAuth } from '@/components/auth/auth-provider';
-import { APP_PATH, LOGIN_PATH } from '@/lib/auth/constants';
+import { LOGIN_PATH } from '@/lib/auth/constants';
 
 /** Redirects unauthenticated users away from protected pages. */
 export const AuthGate = ({
@@ -37,5 +37,3 @@ export const AuthGate = ({
 
   return <>{children}</>;
 };
-
-export { APP_PATH };

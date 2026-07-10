@@ -1,5 +1,7 @@
 // Libs for third party
 import tseslint from 'typescript-eslint';
+import nextPlugin from '@next/eslint-plugin-next';
+import reactHooks from 'eslint-plugin-react-hooks';
 
 // Internal
 import { baseConfig } from './base.js';
@@ -11,11 +13,20 @@ import { baseConfig } from './base.js';
 export const nextConfig = [
   ...baseConfig,
   {
+    plugins: {
+      '@next/next': nextPlugin,
+      'react-hooks': reactHooks,
+    },
     languageOptions: {
       globals: {
         React: 'readonly',
         JSX: 'readonly',
       },
+    },
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs['core-web-vitals'].rules,
+      ...reactHooks.configs.recommended.rules,
     },
   },
 ];

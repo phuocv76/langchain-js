@@ -3,10 +3,10 @@
 // Libs for third party
 import { Laptop, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
 
 // Internal
 import { cn } from '@repo/ui/cn';
+import { useIsMounted } from '@/hooks/use-is-mounted';
 
 const OPTIONS = [
   { value: 'light', label: 'Light', Icon: Sun },
@@ -17,10 +17,7 @@ const OPTIONS = [
 /** Segmented control to switch between light, dark, and system themes. */
 export const ThemeToggle = (): React.JSX.Element => {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  // Avoid hydration mismatch: theme is only known on the client.
-  useEffect(() => setMounted(true), []);
+  const mounted = useIsMounted();
 
   const active = mounted ? (theme ?? 'system') : undefined;
 

@@ -1,26 +1,34 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - 'apps/*'
+  - 'packages/*'
 
 # Allow native/build scripts required by these dependencies (pnpm >= 10).
 onlyBuiltDependencies:
-  - "@scarf/scarf"
+  - '@scarf/scarf'
   - esbuild
   - sharp
   - unrs-resolver
 
 # CopilotKit publishes frequently; exempt from any minimumReleaseAge policy.
 minimumReleaseAgeExclude:
-  - "@copilotkit/react-core"
-  - "@copilotkit/react-ui"
-  - "@copilotkit/runtime"
-  - "@copilotkit/sdk-js"
-  - "@copilotkit/shared"
+  - '@copilotkit/react-core'
+  - '@copilotkit/react-ui'
+  - '@copilotkit/runtime'
+  - '@copilotkit/sdk-js'
+  - '@copilotkit/shared'
+  - '@firebase/app-compat@0.5.15'
+  - '@firebase/app@0.15.1'
+  - '@firebase/remote-config-compat@0.2.27'
+  - '@firebase/remote-config@0.9.0'
+  - '@langchain/core@1.2.2'
+  - '@langchain/openai@1.5.5'
+  - firebase@12.16.0
+  - prettier@3.9.5
 
 allowBuilds:
   '@firebase/util': false
-  '@scarf/scarf': set this to true or false
-  esbuild: set this to true or false
+  '@scarf/scarf': false
+  esbuild: true
   protobufjs: false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
+  sharp: true
+  unrs-resolver: true

@@ -24,11 +24,15 @@ export const handleChat = async (c: Context): Promise<Response> => {
     );
   }
 
-  const { message, threadId } = parsed.data;
+  const { message, threadId, context } = parsed.data;
 
   return streamSSE(c, async (stream) => {
     try {
-      for await (const token of streamChatTokens({ message, threadId })) {
+      for await (const token of streamChatTokens({
+        message,
+        threadId,
+        context,
+      })) {
         await stream.writeSSE({
           event: 'message',
           data: JSON.stringify({ token }),

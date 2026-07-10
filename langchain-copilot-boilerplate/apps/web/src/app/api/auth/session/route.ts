@@ -1,17 +1,21 @@
 // Libs for third party
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 // Internal
 import { AUTH_COOKIE_NAME } from '@/lib/auth/constants';
-import { decodeSession } from '@/lib/auth/session';
+import { getCurrentAuthSession } from '@/lib/auth/server-session';
+import { getSessionCookieOptions } from '@/lib/auth/session';
 
 export const GET = async (): Promise<NextResponse> => {
-  const cookieStore = await cookies();
-  const session = decodeSession(cookieStore.get(AUTH_COOKIE_NAME)?.value);
+  const session = await getCurrentAuthSession();
 
   if (!session) {
-    return NextResponse.json({ user: null }, { status: 401 });
+    const response = NextResponse.json({ user: null }, { status: 401 });
+    response.cookies.set(AUTH_COOKIE_NAME, '', {
+      ...getSessionCookieOptions(),
+      maxAge: 0,
+    });
+    return response;
   }
 
   return NextResponse.json({ user: session });

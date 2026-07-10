@@ -14,15 +14,17 @@ import {
   COPILOT_RUNTIME_URL,
 } from '@/lib/config';
 
-const encodeHeaderValue = (value: string): string => encodeURIComponent(value);
-
-/** Wraps CopilotKit so runtime requests include the signed-in user identity. */
+/** Mounts CopilotKit only after the server-verified user session is available. */
 export const CopilotKitProvider = ({
   children,
 }: {
   readonly children: React.ReactNode;
 }): React.JSX.Element => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  if (isLoading || !user) {
+    return <>{children}</>;
+  }
 
   return (
     <CopilotKit
@@ -30,16 +32,6 @@ export const CopilotKitProvider = ({
       agent={AGENT_ID}
       publicLicenseKey={COPILOT_PUBLIC_LICENSE_KEY}
       useSingleEndpoint={false}
-      headers={(): Record<string, string> => {
-        if (!user) {
-          return {};
-        }
-
-        return {
-          'x-user-id': encodeHeaderValue(user.id),
-          'x-user-name': encodeHeaderValue(user.name),
-        };
-      }}
     >
       <UserProfileAgentState />
       <ThemeAgent />

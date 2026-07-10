@@ -12,8 +12,7 @@ import { CopilotKitProvider } from '@/components/providers/copilot-kit-provider'
  *
  * - `ThemeProvider` (next-themes) drives light/dark/system via a `class`.
  * - `AuthProvider` manages the email sign-in session.
- * - `CopilotKitProvider` connects the UI to the agent runtime and forwards
- *   `x-user-id` / `x-user-name` for Intelligence thread scoping.
+ * - `CopilotKitProvider` connects the UI to the authenticated server proxy.
  * - `ThemeAgent` registers the client-side `setTheme` frontend tool.
  */
 export const Providers = ({

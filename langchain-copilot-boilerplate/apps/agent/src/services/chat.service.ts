@@ -9,6 +9,7 @@ import {
 
 // Internal
 import { compileWithMemory } from '@agent/agents/default-agent/index.js';
+import { buildRestCopilotKitState } from '@agent/services/chat-context.js';
 
 let cachedGraph: ReturnType<typeof compileWithMemory> | undefined;
 
@@ -21,6 +22,7 @@ const getChatGraph = (): ReturnType<typeof compileWithMemory> => {
 interface StreamChatOptions {
   readonly message: string;
   readonly threadId?: string;
+  readonly context?: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -34,6 +36,7 @@ interface StreamChatOptions {
 export const streamChatTokens = async function* ({
   message,
   threadId,
+  context,
 }: StreamChatOptions): AsyncGenerator<string> {
   const graph = getChatGraph();
   const config = {
@@ -41,8 +44,12 @@ export const streamChatTokens = async function* ({
     streamMode: 'messages' as const,
   };
 
+  const copilotkitState = buildRestCopilotKitState(context);
   const stream = await graph.stream(
-    { messages: [new HumanMessage(message)] as BaseMessage[] },
+    {
+      messages: [new HumanMessage(message)] as BaseMessage[],
+      ...copilotkitState,
+    },
     config,
   );
 

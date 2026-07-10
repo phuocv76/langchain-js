@@ -10,34 +10,22 @@ import { useEffect, useRef, useState } from 'react';
 import { APP_NAME } from '@repo/shared';
 import { cn } from '@repo/ui/cn';
 import { useSidebar } from '@/components/layout/sidebar/sidebar-context';
+import { useIsMounted } from '@/hooks/use-is-mounted';
 import { AGENT_ID, COPILOT_PUBLIC_LICENSE_KEY } from '@/lib/config';
-import { isCopilotIntelligenceConfiguredOnWeb } from '@/lib/copilot/intelligence';
 
-const ThreadHistoryError = ({
-  error,
-}: {
-  error: Error;
-}): React.JSX.Element => {
-  const hasWebLicense = isCopilotIntelligenceConfiguredOnWeb();
-
-  if (!hasWebLicense || !COPILOT_PUBLIC_LICENSE_KEY) {
-    return (
-      <p className="px-3 py-2 text-xs text-muted-foreground">
-        Durable history requires CopilotKit Intelligence. Add{' '}
-        <code className="rounded bg-muted px-1">NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY</code>{' '}
-        to <code className="rounded bg-muted px-1">apps/web/.env</code> and the{' '}
-        <code className="rounded bg-muted px-1">INTELLIGENCE_*</code> vars to{' '}
-        <code className="rounded bg-muted px-1">apps/agent/.env</code> (see each app&apos;s{' '}
-        <code className="rounded bg-muted px-1">.env.example</code>). Restart{' '}
-        <code className="rounded bg-muted px-1">pnpm dev</code> after changes.
-      </p>
-    );
-  }
-
+const ThreadHistoryError = ({ error }: { error: Error }): React.JSX.Element => {
   return (
-    <p className="px-3 py-2 text-xs text-red-500">
-      Couldn&apos;t load history: {error.message}
-    </p>
+    <div className="space-y-2 px-3 py-2 text-xs">
+      <p className="text-red-500">
+        Couldn&apos;t load history: {error.message}
+      </p>
+      {!COPILOT_PUBLIC_LICENSE_KEY && (
+        <p className="text-muted-foreground">
+          Durable history also requires CopilotKit Intelligence configuration in
+          both app environments.
+        </p>
+      )}
+    </div>
   );
 };
 
@@ -110,11 +98,7 @@ const ThreadListClientOnly = ({
 }: {
   refreshKey: number;
 }): React.JSX.Element | null => {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useIsMounted();
 
   if (!mounted) {
     return (

@@ -12,16 +12,17 @@ export type FirebaseClientConfig = {
  * in the browser bundle, so keep these as literal lookups.
  */
 const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim();
-const FIREBASE_AUTH_DOMAIN = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
+const FIREBASE_AUTH_DOMAIN =
+  process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
 const FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
 const FIREBASE_APP_ID = process.env.NEXT_PUBLIC_FIREBASE_APP_ID?.trim();
 
 export const isFirebaseConfigured = (): boolean =>
   Boolean(
     FIREBASE_API_KEY &&
-      FIREBASE_AUTH_DOMAIN &&
-      FIREBASE_PROJECT_ID &&
-      FIREBASE_APP_ID,
+    FIREBASE_AUTH_DOMAIN &&
+    FIREBASE_PROJECT_ID &&
+    FIREBASE_APP_ID,
   );
 
 export const getFirebaseClientConfig = (): FirebaseClientConfig => {

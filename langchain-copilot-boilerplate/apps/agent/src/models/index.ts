@@ -25,7 +25,6 @@ export const getChatModel = (): ChatOpenAI => {
   cachedModel = new ChatOpenAI({
     apiKey: env.OPENAI_API_KEY,
     model: env.OPENAI_MODEL,
-    temperature: 0.2,
     streaming: true,
   });
 

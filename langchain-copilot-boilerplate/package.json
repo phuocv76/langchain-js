@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@11.11.0",
   "description": "Turborepo boilerplate for AI apps with LangChain JS, LangGraph, and CopilotKit.",
   "scripts": {
     "dev": "turbo run dev",
@@ -11,13 +11,14 @@
     "dev:web": "turbo run dev --filter=@repo/web",
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore"
   },
   "devDependencies": {
-    "prettier": "^3.6.2",
-    "turbo": "^2.5.4",
+    "prettier": "^3.9.5",
+    "turbo": "^2.10.4",
     "typescript": "^5.9.3"
   },
   "engines": {

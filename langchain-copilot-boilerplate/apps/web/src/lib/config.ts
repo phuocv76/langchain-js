@@ -7,8 +7,7 @@ export const AGENT_ID: string =
 
 /** URL of the CopilotKit runtime hosted by the agent backend. */
 export const COPILOT_RUNTIME_URL: string =
-  process.env.NEXT_PUBLIC_COPILOT_RUNTIME_URL ??
-  'http://localhost:4000/copilotkit';
+  process.env.NEXT_PUBLIC_COPILOT_RUNTIME_URL ?? '/api/copilotkit';
 
 /**
  * Public license key for Enterprise Intelligence features (thread history,
