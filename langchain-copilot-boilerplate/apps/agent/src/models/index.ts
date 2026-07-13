@@ -26,6 +26,9 @@ export const getChatModel = (): ChatOpenAI => {
     apiKey: env.OPENAI_API_KEY,
     model: env.OPENAI_MODEL,
     streaming: true,
+    // GPT-5.4 mini supports function tools with reasoning through the
+    // Responses API, not Chat Completions.
+    useResponsesApi: true,
     // GPT-5 models can spend significant time reasoning before streaming. This
     // is deliberately configurable for tasks where deeper reasoning matters.
     reasoning: { effort: env.OPENAI_REASONING_EFFORT },
