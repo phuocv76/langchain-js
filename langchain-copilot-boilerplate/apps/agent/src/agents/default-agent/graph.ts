@@ -6,6 +6,7 @@ import { createAgent, summarizationMiddleware } from 'langchain';
 // Internal
 import { DefaultAgentStateSchema } from '@agent/agents/default-agent/state.js';
 import { getChatModel } from '@agent/models/index.js';
+import { durableMemoryMiddleware } from '@agent/middleware/durable-memory.js';
 import { DEFAULT_AGENT_SYSTEM_PROMPT } from '@agent/prompts/default-agent.prompt.js';
 import { tools } from '@agent/tools/index.js';
 
@@ -25,6 +26,9 @@ const buildDefaultAgent = () => {
     // Keep durable threads from sending an ever-growing prompt. Summarization
     // only runs after eight turns, then preserves the most recent four turns.
     middleware: [
+      // Explicit flow: authenticated context → durable-memory retrieval →
+      // ReAct model/tool loop → transcript persistence.
+      durableMemoryMiddleware,
       summarizationMiddleware({
         model,
         trigger: { messages: 16 },

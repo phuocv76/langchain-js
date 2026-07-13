@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { getCurrentAuthSession } from '@/lib/auth/server-session';
+import { AUTH_COOKIE_NAME } from '@/lib/auth/constants';
 import {
   getCopilotServerConfig,
   type CopilotServerConfig,
@@ -21,6 +22,14 @@ const HOP_BY_HOP_HEADERS = [
   'transfer-encoding',
   'upgrade',
 ] as const;
+
+const getCookieValue = (request: Request, name: string): string | undefined =>
+  request.headers
+    .get('cookie')
+    ?.split(';')
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
 
 const buildTargetUrl = async (
   request: Request,
@@ -51,9 +60,17 @@ const proxyCopilotKitRequest = async (
   headers.delete('content-length');
   headers.delete('x-user-id');
   headers.delete('x-user-name');
+  headers.delete('x-agent-user-token');
   HOP_BY_HOP_HEADERS.forEach((header) => headers.delete(header));
   headers.set('x-user-id', encodeURIComponent(user.id));
   headers.set('x-user-name', encodeURIComponent(user.name));
+  const sessionCookie = getCookieValue(request, AUTH_COOKIE_NAME);
+
+  if (!sessionCookie) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  headers.set('x-agent-user-token', sessionCookie);
 
   if (config.COPILOT_RUNTIME_SECRET) {
     headers.set('authorization', `Bearer ${config.COPILOT_RUNTIME_SECRET}`);

@@ -8,10 +8,10 @@ describe('agent environment schema', () => {
     assert.equal(envSchema.safeParse({ NODE_ENV: 'test' }).success, true);
   });
 
-  it('rejects partial Intelligence configuration', () => {
+  it('rejects partial durable memory configuration', () => {
     const result = envSchema.safeParse({
       NODE_ENV: 'test',
-      INTELLIGENCE_API_URL: 'https://api.example.com',
+      MEMORY_WORKER_URL: 'https://memory.example.com',
     });
 
     assert.equal(result.success, false);

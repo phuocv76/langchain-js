@@ -37,6 +37,9 @@ export const envSchema = z
       .refine(isValidOriginList, 'Must be a comma-separated list of valid URLs')
       .default('http://localhost:3000'),
     OPENAI_API_KEY: optionalSecret,
+    FIREBASE_PROJECT_ID: optionalSecret,
+    FIREBASE_CLIENT_EMAIL: optionalSecret,
+    FIREBASE_PRIVATE_KEY: optionalSecret,
     OPENAI_MODEL: z.string().min(1).default('gpt-5.4-mini'),
     /** Lower reasoning effort improves time-to-first-token for chat workloads. */
     OPENAI_REASONING_EFFORT: z.enum(['low', 'medium', 'high']).default('low'),
@@ -48,30 +51,27 @@ export const envSchema = z
     OPENAI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(1),
     /** Shared server-to-server secret used by the Next.js CopilotKit proxy. */
     COPILOT_RUNTIME_SECRET: optionalSecret.pipe(z.string().min(32).optional()),
-    /** Server license token from https://dashboard.operations.copilotkit.ai */
-    COPILOTKIT_LICENSE_TOKEN: optionalSecret,
-    /** Intelligence platform REST API (cloud or self-hosted). */
-    INTELLIGENCE_API_URL: z.string().url().optional(),
-    /** Intelligence platform WebSocket gateway. */
-    INTELLIGENCE_GATEWAY_WS_URL: z.string().url().optional(),
-    /** Project-scoped runtime API key (server-side only). */
-    INTELLIGENCE_API_KEY: optionalSecret,
-    /** Default user id for local Intelligence dev when auth is not wired yet. */
-    INTELLIGENCE_DEV_USER_ID: z.string().default('local-dev-user'),
+    MEMORY_WORKER_URL: z.string().url().optional(),
+    CF_ACCESS_CLIENT_ID: optionalSecret,
+    CF_ACCESS_CLIENT_SECRET: optionalSecret,
   })
   .superRefine((value, context) => {
-    const intelligenceValues = [
-      value.INTELLIGENCE_API_URL,
-      value.INTELLIGENCE_GATEWAY_WS_URL,
-      value.INTELLIGENCE_API_KEY,
+    const memoryValues = [
+      value.MEMORY_WORKER_URL,
+      value.CF_ACCESS_CLIENT_ID,
+      value.CF_ACCESS_CLIENT_SECRET,
     ];
-    const configuredCount = intelligenceValues.filter(Boolean).length;
+    const memoryConfiguredCount = memoryValues.filter(Boolean).length;
 
-    if (configuredCount > 0 && configuredCount < intelligenceValues.length) {
+    if (
+      memoryConfiguredCount > 0 &&
+      memoryConfiguredCount < memoryValues.length
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['INTELLIGENCE_API_URL'],
-        message: 'All INTELLIGENCE_* variables must be configured together',
+        path: ['MEMORY_WORKER_URL'],
+        message:
+          'MEMORY_WORKER_URL, CF_ACCESS_CLIENT_ID, and CF_ACCESS_CLIENT_SECRET must be configured together',
       });
     }
 

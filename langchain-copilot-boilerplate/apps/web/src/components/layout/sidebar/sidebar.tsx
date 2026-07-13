@@ -2,7 +2,7 @@
 
 // Libs for third party
 import { useCopilotContext } from '@copilotkit/react-core';
-import { useAgent, useThreads } from '@copilotkit/react-core/v2';
+import { useAgent } from '@copilotkit/react-core/v2';
 import { PanelLeftClose, Plus, MessageSquare, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -11,34 +11,37 @@ import { APP_NAME } from '@repo/shared';
 import { cn } from '@repo/ui/cn';
 import { useSidebar } from '@/components/layout/sidebar/sidebar-context';
 import { useIsMounted } from '@/hooks/use-is-mounted';
-import { AGENT_ID, COPILOT_PUBLIC_LICENSE_KEY } from '@/lib/config';
-
-const ThreadHistoryError = ({ error }: { error: Error }): React.JSX.Element => {
-  return (
-    <div className="space-y-2 px-3 py-2 text-xs">
-      <p className="text-red-500">
-        Couldn&apos;t load history: {error.message}
-      </p>
-      {!COPILOT_PUBLIC_LICENSE_KEY && (
-        <p className="text-muted-foreground">
-          Durable history also requires CopilotKit Intelligence configuration in
-          both app environments.
-        </p>
-      )}
-    </div>
-  );
-};
+import { AGENT_ID } from '@/lib/config';
+import { getHistoryThreads, type HistoryThread } from '@/lib/memory/history';
 
 /**
- * Renders the thread list from CopilotKit thread endpoints.
- *
- * With Enterprise Intelligence configured, threads are durable, named, and
- * update in realtime. In local-only mode the runtime keeps threads in memory
- * and this list is refreshed after each agent run (no WebSocket).
+ * Renders D1-backed transcript threads rather than CopilotKit Intelligence.
  */
-const ThreadList = (): React.JSX.Element => {
-  const { threads, isLoading, error } = useThreads({ agentId: AGENT_ID });
+const ThreadList = ({ refreshKey }: { readonly refreshKey: number }): React.JSX.Element => {
   const { threadId, setThreadId } = useCopilotContext();
+  const [threads, setThreads] = useState<readonly HistoryThread[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error>();
+
+  useEffect(() => {
+    let active = true;
+    void getHistoryThreads()
+      .then((history) => {
+        if (active) setThreads(history);
+      })
+      .catch((reason: unknown) => {
+        if (active)
+          setError(
+            reason instanceof Error ? reason : new Error('Could not load history'),
+          );
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [refreshKey]);
 
   if (isLoading) {
     return (
@@ -49,7 +52,7 @@ const ThreadList = (): React.JSX.Element => {
   }
 
   if (error) {
-    return <ThreadHistoryError error={error} />;
+    return <p className="px-3 py-2 text-xs text-red-500">Couldn&apos;t load history: {error.message}</p>;
   }
 
   if (threads.length === 0) {
@@ -63,13 +66,13 @@ const ThreadList = (): React.JSX.Element => {
   return (
     <ul className="space-y-0.5">
       {threads.map((thread) => {
-        const isActive = thread.id === threadId;
-        const label = thread.name ?? 'New conversation';
+        const isActive = thread.thread_id === threadId;
+        const label = thread.title?.slice(0, 80) || 'New conversation';
         return (
-          <li key={thread.id}>
+          <li key={thread.thread_id}>
             <button
               type="button"
-              onClick={() => setThreadId(thread.id)}
+              onClick={() => setThreadId(thread.thread_id)}
               title={label}
               className={cn(
                 'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
@@ -87,11 +90,7 @@ const ThreadList = (): React.JSX.Element => {
 };
 
 /**
- * Renders {@link ThreadList} only after mount.
- *
- * `useThreads` relies on `useSyncExternalStore` without a server snapshot, which
- * throws during SSR ("Missing getServerSnapshot"). Deferring to the client
- * keeps the initial server render safe.
+ * Renders the D1 history list only after mount.
  */
 const ThreadListClientOnly = ({
   refreshKey,
@@ -108,7 +107,7 @@ const ThreadListClientOnly = ({
     );
   }
 
-  return <ThreadList key={refreshKey} />;
+  return <ThreadList refreshKey={refreshKey} />;
 };
 
 /** ChatGPT-style left sidebar: branding, new chat, and conversation history. */
@@ -118,8 +117,7 @@ export const Sidebar = (): React.JSX.Element | null => {
   const { agent } = useAgent({ agentId: AGENT_ID });
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Local (non-Intelligence) runtimes have no realtime thread sync — refetch
-  // the list whenever an agent run finishes so new conversations appear.
+  // D1 is refreshed after each completed run so new conversations appear.
   const wasRunning = useRef(false);
   useEffect(() => {
     if (wasRunning.current && !agent.isRunning) {

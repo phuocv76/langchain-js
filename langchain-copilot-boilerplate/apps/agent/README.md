@@ -44,6 +44,5 @@ Reads from `apps/agent/.env` (see `.env.example` in this directory):
 `OPENAI_MAX_RETRIES`, `AGENT_PORT`, `LANGGRAPH_DEPLOYMENT_URL`,
 `CORS_ORIGINS`, and (in production) `COPILOT_RUNTIME_SECRET`.
 
-For durable chat history, also set `INTELLIGENCE_API_URL`, `INTELLIGENCE_GATEWAY_WS_URL`,
-and `INTELLIGENCE_API_KEY` in this file, plus `NEXT_PUBLIC_COPILOTKIT_PUBLIC_LICENSE_KEY`
-in `apps/web/.env`.
+For durable chat history, configure `MEMORY_WORKER_URL`, `CF_ACCESS_CLIENT_ID`, and
+`CF_ACCESS_CLIENT_SECRET` in this file. The Cloudflare Worker stores transcripts in D1.

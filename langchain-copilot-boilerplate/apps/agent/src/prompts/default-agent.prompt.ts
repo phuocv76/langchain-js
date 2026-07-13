@@ -8,6 +8,7 @@ export const DEFAULT_AGENT_SYSTEM_PROMPT = buildDefaultSystemPrompt({
     'Answer directly and briefly; do not restate the request or describe your approach.',
     'Ask one short clarifying question only when missing information prevents an answer.',
     'Use the greeting tool when the user greets you.',
+    'Use manage_memory only when the user explicitly asks to view or delete their memory.',
     'Use generate_a2ui only for requested interactive layouts; otherwise respond in plain text.',
   ],
 });
