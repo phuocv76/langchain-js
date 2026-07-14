@@ -1,7 +1,5 @@
 export interface MemoryBindings {
   readonly MEMORY_DB: D1Database;
-  readonly MEMORY_INDEX: VectorizeIndex;
-  readonly AI: Ai;
 }
 
 type Identity = {
@@ -42,26 +40,6 @@ const parseIdentity = (value: unknown): Identity | undefined => {
   };
 };
 
-const chunkText = (content: string, maxLength = 800): string[] => {
-  const normalized = content.trim();
-  if (!normalized) return [];
-  const chunks: string[] = [];
-  for (let start = 0; start < normalized.length; start += maxLength) {
-    chunks.push(normalized.slice(start, start + maxLength));
-  }
-  return chunks;
-};
-
-const embed = async (
-  bindings: MemoryBindings,
-  texts: readonly string[],
-): Promise<number[][]> => {
-  const result = (await bindings.AI.run('@cf/baai/bge-base-en-v1.5', {
-    text: [...texts],
-  })) as unknown as { data: number[][] };
-  return result.data;
-};
-
 const appendTurn = async (
   request: Request,
   bindings: MemoryBindings,
@@ -79,11 +57,10 @@ const appendTurn = async (
   }
 
   const turnId = crypto.randomUUID();
-  const chunks = chunkText(candidate.content);
   await bindings.MEMORY_DB.prepare(
     `INSERT INTO memory_turns
-      (id, tenant_id, user_id, thread_id, request_id, role, content, tool_metadata, vector_chunk_count)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, tenant_id, user_id, thread_id, request_id, role, content, tool_metadata)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       turnId,
@@ -96,25 +73,8 @@ const appendTurn = async (
       candidate.toolMetadata === undefined
         ? null
         : JSON.stringify(candidate.toolMetadata),
-      chunks.length,
     )
     .run();
-
-  if (chunks.length > 0) {
-    const embeddings = await embed(bindings, chunks);
-    await bindings.MEMORY_INDEX.upsert(
-      embeddings.map((values, index) => ({
-        id: `${turnId}:${index}`,
-        values,
-        metadata: {
-          turnId,
-          tenantId: identity.tenantId,
-          userId: identity.userId,
-          threadId: identity.threadId,
-        },
-      })),
-    );
-  }
   return json({ id: turnId }, 201);
 };
 
@@ -124,25 +84,11 @@ const retrieve = async (request: Request, bindings: MemoryBindings): Promise<Res
   const query = body && typeof body === 'object' ? (body as Record<string, unknown>).query : undefined;
   if (!identity || !isString(query)) return json({ error: 'Invalid memory retrieval payload' }, 400);
 
-  const [queryEmbedding] = await embed(bindings, [query]);
-  if (!queryEmbedding) return json({ error: 'Unable to embed memory query' }, 502);
-  const matches = await bindings.MEMORY_INDEX.query(queryEmbedding, {
-    topK: 6,
-    returnMetadata: 'all',
-    filter: { tenantId: identity.tenantId, userId: identity.userId },
-  });
-  const turnIds = [...new Set(matches.matches.map((match) => match.metadata?.turnId).filter(isString))];
-  const semanticTurns = turnIds.length
-    ? await bindings.MEMORY_DB.prepare(
-        `SELECT id, thread_id, role, content, created_at FROM memory_turns
-         WHERE tenant_id = ? AND user_id = ? AND id IN (${turnIds.map(() => '?').join(', ')})`,
-      ).bind(identity.tenantId, identity.userId, ...turnIds).all()
-    : { results: [] };
   const recentTurns = await bindings.MEMORY_DB.prepare(
     `SELECT id, thread_id, role, content, created_at FROM memory_turns
      WHERE tenant_id = ? AND user_id = ? AND thread_id = ? ORDER BY created_at DESC LIMIT 8`,
   ).bind(identity.tenantId, identity.userId, identity.threadId).all();
-  return json({ semanticTurns: semanticTurns.results, recentTurns: recentTurns.results });
+  return json({ semanticTurns: [], recentTurns: recentTurns.results });
 };
 
 const listTurns = async (request: Request, bindings: MemoryBindings): Promise<Response> => {
@@ -173,12 +119,8 @@ const deleteScope = async (request: Request, bindings: MemoryBindings, threadOnl
     ? [identity.tenantId, identity.userId, identity.threadId]
     : [identity.tenantId, identity.userId];
   const turns = await bindings.MEMORY_DB.prepare(
-    `SELECT id, vector_chunk_count FROM memory_turns WHERE tenant_id = ? AND user_id = ?${clause}`,
-  ).bind(...values).all<{ id: string; vector_chunk_count: number }>();
-  const vectorIds = turns.results.flatMap((turn) =>
-    Array.from({ length: turn.vector_chunk_count }, (_, index) => `${turn.id}:${index}`),
-  );
-  if (vectorIds.length > 0) await bindings.MEMORY_INDEX.deleteByIds(vectorIds);
+    `SELECT id FROM memory_turns WHERE tenant_id = ? AND user_id = ?${clause}`,
+  ).bind(...values).all<{ id: string }>();
   await bindings.MEMORY_DB.prepare(
     `DELETE FROM memory_turns WHERE tenant_id = ? AND user_id = ?${clause}`,
   ).bind(...values).run();

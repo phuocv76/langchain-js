@@ -47,12 +47,13 @@ Reads from `apps/agent/.env` (see `.env.example` in this directory):
 For durable chat history in the Cloudflare deployment, configure
 `MEMORY_SERVICE_URL` (the Agent Worker's own URL) and
 `MEMORY_INTERNAL_SECRET`. The same Agent Worker stores transcripts in D1 and
-indexes them in Vectorize; there is no separate memory Worker.
+loads recent context from the current thread; there is no separate memory
+Worker or Vectorize index.
 
 ## Cloudflare Worker deployment
 
 `wrangler.jsonc` deploys the Agent API and durable-memory implementation as one
-Worker. Create the D1 database and Vectorize index, replace the D1 database ID,
+Worker. Create the D1 database, replace the D1 database ID,
 then apply the migration with one of these commands:
 
 ```bash

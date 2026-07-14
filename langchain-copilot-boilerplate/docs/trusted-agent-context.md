@@ -22,9 +22,9 @@ arguments, logs, or responses.
 3. The graph loads same-tenant, same-user durable context from the Agent
    Worker's private memory routes, then persists the incoming user message to D1 before it runs the
    model/tool ReAct loop.
-4. On completion, the assistant turn is persisted to D1 and both turns are
-   indexed in Vectorize. A failed run therefore retains its starting user
-   message while avoiding storage of a partial assistant reply. LangChain
+4. On completion, the assistant turn is persisted to D1. A failed run therefore
+   retains its starting user message while avoiding storage of a partial
+   assistant reply. LangChain
    summarization still bounds the live message history.
 
 Invalid or revoked cookies return 401; absent required claims return 403;
@@ -33,13 +33,13 @@ controlled graph error and do not expose credentials.
 
 ## Cloudflare Worker deployment
 
-Deploy `apps/agent` as the single Worker. Create the D1 database and Vectorize
-index, replace the placeholder D1 database ID in `apps/agent/wrangler.jsonc`,
+Deploy `apps/agent` as the single Worker. Create the D1 database, replace the
+placeholder D1 database ID in `apps/agent/wrangler.jsonc`,
 then apply `apps/agent/migrations/0001_memory.sql`. Configure the remote graph
 with the Agent Worker's URL as `MEMORY_SERVICE_URL` and set the same
 `MEMORY_INTERNAL_SECRET` in both places. The private `/internal/memory/*`
 routes accept only that secret and are never exposed to the browser.
 
 D1 stores full transcripts without automatic expiry. The Worker exposes scoped
-append, retrieval, list, thread-delete, and user-delete endpoints. Deletion
-removes matching D1 rows and associated Vectorize vector IDs.
+append, retrieval, list, thread-delete, and user-delete endpoints. Retrieval
+uses the latest turns from the current thread; deletion removes matching D1 rows.

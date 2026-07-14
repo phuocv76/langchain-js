@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS memory_turns (
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'tool')),
   content TEXT NOT NULL,
   tool_metadata TEXT,
-  vector_chunk_count INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
