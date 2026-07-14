@@ -53,6 +53,16 @@ indexes them in Vectorize; there is no separate memory Worker.
 
 `wrangler.jsonc` deploys the Agent API and durable-memory implementation as one
 Worker. Create the D1 database and Vectorize index, replace the D1 database ID,
-apply `migrations/0001_memory.sql`, then set `MEMORY_INTERNAL_SECRET` with
-`wrangler secret put`. Set `MEMORY_SERVICE_URL` to this Worker's public URL for
-the remote LangGraph runtime.
+then apply the migration with one of these commands:
+
+```bash
+# Local Wrangler D1 database
+pnpm db:migrate:local
+
+# Cloudflare D1 database (requires a real database_id in wrangler.jsonc)
+pnpm db:migrate:remote
+```
+
+Set `MEMORY_INTERNAL_SECRET` with `wrangler secret put`. Set
+`MEMORY_SERVICE_URL` to this Worker's public URL for the remote LangGraph
+runtime.

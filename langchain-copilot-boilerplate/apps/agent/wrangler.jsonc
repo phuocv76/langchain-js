@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     {
-      "binding": "D1-DATABASE",
+      "binding": "MEMORY_DB",
       "database_name": "langchain-boilerplate",
       "database_id": "e5003996-880e-476c-8d31-05c3642da476"
     }

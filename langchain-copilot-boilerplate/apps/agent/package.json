@@ -10,6 +10,8 @@
     "dev:api": "tsx watch --env-file=.env src/server.ts",
     "dev:worker": "wrangler dev",
     "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 execute MEMORY_DB --local --file=migrations/0001_memory.sql --config wrangler.jsonc",
+    "db:migrate:remote": "wrangler d1 execute MEMORY_DB --remote --file=migrations/0001_memory.sql --config wrangler.jsonc",
     "build": "tsup --config tsup.config.ts",
     "start": "node --env-file=.env dist/server.js",
     "lint": "eslint .",
