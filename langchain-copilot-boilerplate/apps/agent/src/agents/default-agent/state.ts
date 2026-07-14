@@ -1,6 +1,7 @@
 // Libs for third party
 import { CopilotKitStateSchema } from '@copilotkit/sdk-js/langgraph';
-import { StateSchema, UntrackedValue } from '@langchain/langgraph';
+import { StateSchema } from '@langchain/langgraph';
+import { z } from 'zod/v4';
 
 export interface TrustedAgentStateContext {
   readonly requestId: string;
@@ -17,11 +18,19 @@ export interface TrustedAgentStateContext {
 export const DefaultAgentStateSchema = new StateSchema({
   ...CopilotKitStateSchema.fields,
   /** Verified identity metadata only; raw Firebase credentials are never state. */
-  agentContext: new UntrackedValue<TrustedAgentStateContext>(),
+  agentContext: z
+    .object({
+      requestId: z.string(),
+      userId: z.string(),
+      tenantId: z.string(),
+      roles: z.array(z.string()),
+      threadId: z.string(),
+    })
+    .optional(),
   /** Bounded, sanitized transcript excerpts retrieved before the model call. */
-  retrievedMemory: new UntrackedValue<string[]>(),
+  retrievedMemory: z.array(z.string()).optional(),
   /** Durable-memory write ids emitted after the agent completes. */
-  memoryWriteIds: new UntrackedValue<string[]>(),
+  memoryWriteIds: z.array(z.string()).optional(),
 });
 
 export type DefaultAgentStateType = typeof DefaultAgentStateSchema.State;

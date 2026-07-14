@@ -42,4 +42,5 @@ Next.js loads that file automatically when you run `pnpm dev` from the monorepo 
 - `NEXT_PUBLIC_AGENT_ID` — must match a graph id in `apps/agent/langgraph.json`.
 - `NEXT_PUBLIC_FIREBASE_*` + `FIREBASE_*` — Google Sign-In via Firebase Authentication.
 
-Server-side D1 memory Worker credentials belong in **`apps/agent/.env`**, not here.
+The Agent Worker's durable-memory configuration belongs in **`apps/agent/.env`**,
+not here.

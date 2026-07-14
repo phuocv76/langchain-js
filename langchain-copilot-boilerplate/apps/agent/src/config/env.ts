@@ -51,15 +51,15 @@ export const envSchema = z
     OPENAI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(1),
     /** Shared server-to-server secret used by the Next.js CopilotKit proxy. */
     COPILOT_RUNTIME_SECRET: optionalSecret.pipe(z.string().min(32).optional()),
-    MEMORY_WORKER_URL: z.string().url().optional(),
-    CF_ACCESS_CLIENT_ID: optionalSecret,
-    CF_ACCESS_CLIENT_SECRET: optionalSecret,
+    /** Public URL of this same Worker, used by the remote LangGraph runtime. */
+    MEMORY_SERVICE_URL: z.string().url().optional(),
+    /** Secret accepted only by this Worker's private memory routes. */
+    MEMORY_INTERNAL_SECRET: optionalSecret.pipe(z.string().min(32).optional()),
   })
   .superRefine((value, context) => {
     const memoryValues = [
-      value.MEMORY_WORKER_URL,
-      value.CF_ACCESS_CLIENT_ID,
-      value.CF_ACCESS_CLIENT_SECRET,
+      value.MEMORY_SERVICE_URL,
+      value.MEMORY_INTERNAL_SECRET,
     ];
     const memoryConfiguredCount = memoryValues.filter(Boolean).length;
 
@@ -69,9 +69,9 @@ export const envSchema = z
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['MEMORY_WORKER_URL'],
+        path: ['MEMORY_SERVICE_URL'],
         message:
-          'MEMORY_WORKER_URL, CF_ACCESS_CLIENT_ID, and CF_ACCESS_CLIENT_SECRET must be configured together',
+          'MEMORY_SERVICE_URL and MEMORY_INTERNAL_SECRET must be configured together',
       });
     }
 

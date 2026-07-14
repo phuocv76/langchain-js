@@ -19,8 +19,8 @@ arguments, logs, or responses.
    session, and forwards the session cookie plus the runtime secret.
 2. Agent middleware verifies the cookie, requires `tenant_id` and `roles`
    Firebase custom claims, and emits sanitized identity headers.
-3. The graph loads same-tenant, same-user durable context from the memory
-   Worker, then persists the incoming user message to D1 before it runs the
+3. The graph loads same-tenant, same-user durable context from the Agent
+   Worker's private memory routes, then persists the incoming user message to D1 before it runs the
    model/tool ReAct loop.
 4. On completion, the assistant turn is persisted to D1 and both turns are
    indexed in Vectorize. A failed run therefore retains its starting user
@@ -33,11 +33,12 @@ controlled graph error and do not expose credentials.
 
 ## Cloudflare Worker deployment
 
-Deploy `apps/memory-worker` behind a Cloudflare Access application that accepts
-the agent's Access service token. Create the D1 database and Vectorize index,
-replace the placeholder D1 database ID in `wrangler.jsonc`, then apply
-`migrations/0001_memory.sql`. Configure `MEMORY_WORKER_URL`,
-`CF_ACCESS_CLIENT_ID`, and `CF_ACCESS_CLIENT_SECRET` in the agent together.
+Deploy `apps/agent` as the single Worker. Create the D1 database and Vectorize
+index, replace the placeholder D1 database ID in `apps/agent/wrangler.jsonc`,
+then apply `apps/agent/migrations/0001_memory.sql`. Configure the remote graph
+with the Agent Worker's URL as `MEMORY_SERVICE_URL` and set the same
+`MEMORY_INTERNAL_SECRET` in both places. The private `/internal/memory/*`
+routes accept only that secret and are never exposed to the browser.
 
 D1 stores full transcripts without automatic expiry. The Worker exposes scoped
 append, retrieval, list, thread-delete, and user-delete endpoints. Deletion

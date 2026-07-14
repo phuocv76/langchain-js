@@ -28,12 +28,16 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const establishServerSession = async (
   idToken: string,
-): Promise<AuthSession> => {
+): Promise<{ status: 'ok'; user: AuthSession } | { status: 'retry' }> => {
   const response = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken }),
   });
+
+  if (response.status === 409) {
+    return { status: 'retry' };
+  }
 
   if (!response.ok) {
     const data = (await response.json().catch(() => null)) as {
@@ -43,7 +47,7 @@ const establishServerSession = async (
   }
 
   const data = (await response.json()) as { user: AuthSession };
-  return data.user;
+  return { status: 'ok', user: data.user };
 };
 
 const fetchServerSession = async (): Promise<AuthSession | null> => {
@@ -92,10 +96,20 @@ export const AuthProvider = ({
 
     const auth = getFirebaseAuth();
     const credential = await signInWithPopup(auth, getGoogleProvider());
-    const idToken = await credential.user.getIdToken();
-    const session = await establishServerSession(idToken);
+    let idToken = await credential.user.getIdToken();
+    let loginResult = await establishServerSession(idToken);
+
+    if (loginResult.status === 'retry') {
+      idToken = await credential.user.getIdToken(true);
+      loginResult = await establishServerSession(idToken);
+    }
+
+    if (loginResult.status === 'retry') {
+      throw new Error('Unable to provision sign-in claims. Please try again.');
+    }
+
     await signOut(auth);
-    setUser(session);
+    setUser(loginResult.user);
   }, []);
 
   const logout = useCallback(async (): Promise<void> => {

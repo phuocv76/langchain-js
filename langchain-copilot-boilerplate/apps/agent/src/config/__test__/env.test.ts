@@ -11,7 +11,7 @@ describe('agent environment schema', () => {
   it('rejects partial durable memory configuration', () => {
     const result = envSchema.safeParse({
       NODE_ENV: 'test',
-      MEMORY_WORKER_URL: 'https://memory.example.com',
+      MEMORY_SERVICE_URL: 'https://agent.example.com',
     });
 
     assert.equal(result.success, false);

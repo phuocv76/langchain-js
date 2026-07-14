@@ -44,5 +44,15 @@ Reads from `apps/agent/.env` (see `.env.example` in this directory):
 `OPENAI_MAX_RETRIES`, `AGENT_PORT`, `LANGGRAPH_DEPLOYMENT_URL`,
 `CORS_ORIGINS`, and (in production) `COPILOT_RUNTIME_SECRET`.
 
-For durable chat history, configure `MEMORY_WORKER_URL`, `CF_ACCESS_CLIENT_ID`, and
-`CF_ACCESS_CLIENT_SECRET` in this file. The Cloudflare Worker stores transcripts in D1.
+For durable chat history in the Cloudflare deployment, configure
+`MEMORY_SERVICE_URL` (the Agent Worker's own URL) and
+`MEMORY_INTERNAL_SECRET`. The same Agent Worker stores transcripts in D1 and
+indexes them in Vectorize; there is no separate memory Worker.
+
+## Cloudflare Worker deployment
+
+`wrangler.jsonc` deploys the Agent API and durable-memory implementation as one
+Worker. Create the D1 database and Vectorize index, replace the D1 database ID,
+apply `migrations/0001_memory.sql`, then set `MEMORY_INTERNAL_SECRET` with
+`wrangler secret put`. Set `MEMORY_SERVICE_URL` to this Worker's public URL for
+the remote LangGraph runtime.

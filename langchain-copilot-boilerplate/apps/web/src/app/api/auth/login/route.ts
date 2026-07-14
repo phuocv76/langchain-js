@@ -12,6 +12,10 @@ import {
 import { isTrustedRequestOrigin } from '@/lib/auth/request';
 import { loginSchema } from '@/lib/auth/validation';
 import {
+  getDefaultFirebaseClaims,
+  hasRequiredFirebaseClaims,
+} from '@/lib/auth/firebase-claims';
+import {
   getFirebaseAdminAuth,
   isFirebaseAdminConfigured,
 } from '@/lib/firebase/admin';
@@ -47,6 +51,14 @@ export const POST = async (request: Request): Promise<NextResponse> => {
   try {
     const auth = getFirebaseAdminAuth();
     const decoded = await auth.verifyIdToken(parsed.data.idToken, true);
+
+    if (!hasRequiredFirebaseClaims(decoded)) {
+      await auth.setCustomUserClaims(decoded.uid, getDefaultFirebaseClaims());
+      return NextResponse.json(
+        { error: 'Sign-in claims were provisioned. Refresh your token and retry.' },
+        { status: 409 },
+      );
+    }
 
     if (!isRecentFirebaseSignIn(decoded.auth_time)) {
       return NextResponse.json(

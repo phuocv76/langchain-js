@@ -20,9 +20,7 @@ export class MemoryServiceError extends Error {
 
 const isConfigured = (): boolean =>
   Boolean(
-    env.MEMORY_WORKER_URL &&
-      env.CF_ACCESS_CLIENT_ID &&
-      env.CF_ACCESS_CLIENT_SECRET,
+    env.MEMORY_SERVICE_URL && env.MEMORY_INTERNAL_SECRET,
   );
 
 const requestMemoryService = async <T>(
@@ -32,12 +30,11 @@ const requestMemoryService = async <T>(
 ): Promise<T | undefined> => {
   if (!isConfigured()) return undefined;
 
-  const response = await fetch(`${env.MEMORY_WORKER_URL}${path}`, {
+  const response = await fetch(`${env.MEMORY_SERVICE_URL}/internal/memory${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      'CF-Access-Client-Id': env.CF_ACCESS_CLIENT_ID!,
-      'CF-Access-Client-Secret': env.CF_ACCESS_CLIENT_SECRET!,
+      'x-memory-internal-secret': env.MEMORY_INTERNAL_SECRET!,
     },
     body: JSON.stringify(body),
   });

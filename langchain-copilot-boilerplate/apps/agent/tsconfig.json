@@ -4,6 +4,7 @@
     "rootDir": "src",
     "outDir": "dist",
     "noEmit": true,
+    "types": ["node", "@cloudflare/workers-types"],
     "paths": {
       "@/*": ["./src/*"],
       "@agent/*": ["./src/*"]

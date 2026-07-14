@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS memory_turns (
   content TEXT NOT NULL,
   tool_metadata TEXT,
   vector_chunk_count INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
 CREATE INDEX IF NOT EXISTS memory_turns_scope_created

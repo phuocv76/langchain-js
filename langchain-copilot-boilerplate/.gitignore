@@ -20,6 +20,9 @@ out/
 # LangGraph dev server
 .langgraph_api/
 
+# Wrangler
+.wrangler/
+
 # Logs
 *.log
 npm-debug.log*
