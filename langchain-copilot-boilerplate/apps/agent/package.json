@@ -9,7 +9,7 @@
     "dev:graph": "langgraphjs dev --port 2024 --no-browser",
     "dev:api": "tsx watch --env-file=.env src/server.ts",
     "dev:worker": "wrangler dev",
-    "deploy:worker": "wrangler deploy",
+    "deploy": "wrangler deploy",
     "build": "tsup --config tsup.config.ts",
     "start": "node --env-file=.env dist/server.js",
     "lint": "eslint .",
