@@ -1,23 +1,27 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "agent",
-  "main": "src/worker.ts",
-  "compatibility_date": "2026-07-14",
-  "compatibility_flags": ["nodejs_compat"],
-  "d1_databases": [
-    {
-      "binding": "MEMORY_DB",
-      "database_name": "langchain-boilerplate",
-      "database_id": "e5003996-880e-476c-8d31-05c3642da476"
-    }
-  ],
-  "vectorize": [
-    {
-      "binding": "MEMORY_INDEX",
-      "index_name": "agent-memory"
-    }
-  ],
-  "ai": {
-    "binding": "AI"
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "agent",
+	"main": "src/worker.ts",
+	"compatibility_date": "2026-07-14",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"d1_databases": [
+		{
+			"binding": "MEMORY_DB",
+			"database_name": "langchain-boilerplate",
+			"database_id": "e5003996-880e-476c-8d31-05c3642da476"
+		}
+	],
+	"vectorize": [
+		
+		{
+			"binding": "VECTORIZE",
+			"index_name": "agent-memory",
+			"remote": true
+		}
+	],
+	"ai": {
+		"binding": "AI"
+	}
 }
