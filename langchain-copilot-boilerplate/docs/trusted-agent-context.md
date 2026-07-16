@@ -1,44 +1,78 @@
 # Trusted Agent Context and Durable Memory
 
-The browser never calls the agent runtime directly. The Next.js CopilotKit
-proxy validates the Firebase session and forwards its httpOnly cookie only as
-`x-agent-user-token` to the trusted agent service over TLS. The agent verifies
-the cookie again with revocation checking, then removes that header before the
-CopilotKit runtime can forward requests to LangGraph.
+The chat frontend calls the agent runtime directly with the signed-in user's
+Firebase ID token (`Authorization: Bearer`). The agent verifies the token with
+revocation checking and, when `ALLOWED_EMAIL_DOMAINS` is configured, only
+accepts verified emails on those domains. It then removes the credential
+before the CopilotKit runtime can forward requests to LangGraph. `roles` come
+from an optional custom claim (defaulting to none).
 
 Only these non-secret headers reach LangGraph: `x-agent-request-id`,
-`x-agent-user-id`, `x-agent-tenant-id`, and `x-agent-roles`. The LangGraph
-adapter places them in `configurable.copilotkit_forwarded_headers`; durable
-memory middleware converts them to graph state for the active run. Do not add
-credentials, raw cookies, or session tokens to graph state, prompts, tool
+`x-agent-user-id`, `x-agent-user-email`, and `x-agent-roles`. The LangGraph
+server copies each `x-*` request header into `config.configurable` under its
+lowercased name; durable memory middleware converts them to graph state for
+the active run. Do not add
+credentials, raw ID tokens, or session material to graph state, prompts, tool
 arguments, logs, or responses.
 
 ## Execution flow
 
-1. Next.js removes browser-provided identity headers, verifies the Firebase
-   session, and forwards the session cookie plus the runtime secret.
-2. Agent middleware verifies the cookie, requires `tenant_id` and `roles`
-   Firebase custom claims, and emits sanitized identity headers.
-3. The graph loads same-tenant, same-user durable context from the memory
-   Worker, then persists the incoming user message to D1 before it runs the
-   model/tool ReAct loop.
-4. On completion, the assistant turn is persisted to D1 and both turns are
-   indexed in Vectorize. A failed run therefore retains its starting user
-   message while avoiding storage of a partial assistant reply. LangChain
-   summarization still bounds the live message history.
+1. The frontend attaches the Firebase ID token to every `/copilotkit`,
+   `/chat`, and `/memory` request; CORS restricts browser origins to
+   `CORS_ORIGINS`.
+2. Agent middleware verifies the token, enforces the allowed email domains
+   (verified emails only), deletes the `authorization` header, and emits
+   sanitized identity headers.
+3. The graph loads same-user durable context from the configured
+   memory service (if any), then persists the incoming user message before it
+   runs the model/tool ReAct loop.
+4. On completion, the assistant turn is persisted. A failed run therefore
+   retains its starting user message while avoiding storage of a partial
+   assistant reply. LangChain summarization still bounds the live message
+   history.
 
-Invalid or revoked cookies return 401; absent required claims return 403;
-missing Firebase configuration returns 503; memory Worker errors surface as a
-controlled graph error and do not expose credentials.
+Invalid or revoked tokens return 401; accounts outside the allowed email
+domains return 403; missing Firebase configuration returns 503.
 
-## Cloudflare Worker deployment
+## Calling the existing product REST API
 
-Deploy `apps/memory-worker` behind a Cloudflare Access application that accepts
-the agent's Access service token. Create the D1 database and Vectorize index,
-replace the placeholder D1 database ID in `wrangler.jsonc`, then apply
-`migrations/0001_memory.sql`. Configure `MEMORY_WORKER_URL`,
-`CF_ACCESS_CLIENT_ID`, and `CF_ACCESS_CLIENT_SECRET` in the agent together.
+Tools never call the product API with user credentials. The api-client
+(`apps/agent/src/services/api-client.ts`) authenticates with the
+`API_SERVICE_TOKEN` service credential and forwards the acting user as
+`X-Acting-User-Id`, `X-Acting-User-Email`, and `X-Request-Id` headers. The
+product API must trust this agent service and enforce per-user authorization
+from those headers. Identity always comes from the verified trusted context —
+tools must ignore identity fields in model-generated arguments.
 
-D1 stores full transcripts without automatic expiry. The Worker exposes scoped
-append, retrieval, list, thread-delete, and user-delete endpoints. Deletion
-removes matching D1 rows and associated Vectorize vector IDs.
+On the product API (space-api) side, `agentAuthMiddleware` implements the
+matching contract: a request carrying `X-Acting-User-Email` must present the
+`AGENT_SERVICE_TOKEN` secret as `Authorization: Bearer` (compared in constant
+time). The middleware loads the existing user by email — it never creates
+accounts — requires an allowed domain and active status, and the API's
+regular permission checks then apply to that acting user. Configure the
+secret with `wrangler secret put AGENT_SERVICE_TOKEN --env dev` and set the
+same value as `API_SERVICE_TOKEN` in `apps/agent/.env`.
+
+## Durable memory service (optional)
+
+Durable transcript memory is served by `apps/memory-worker` (Cloudflare
+Worker: D1 turn store + best-effort Vectorize/Workers AI semantic recall).
+Set `MEMORY_WORKER_URL` to enable it; when unset, memory retrieval and
+persistence no-op and chat works statelessly across restarts. Memory
+failures never fail a chat turn — the middleware degrades to no memory.
+
+- Local: `pnpm --filter @repo/memory-worker dev:offline` runs entirely on
+  this machine (D1 is a local SQLite file; semantic recall is disabled, so
+  retrieval returns recent turns only). Point the agent at
+  `MEMORY_WORKER_URL=http://localhost:8788`. No Cloudflare account needed.
+  After `wrangler login`, `pnpm dev` adds real embeddings.
+- Deployed: the worker sits behind Cloudflare Access, so also set the
+  service-token pair `CF_ACCESS_CLIENT_ID` + `CF_ACCESS_CLIENT_SECRET`
+  (both together). Identity scoping is by `userId` from the trusted agent
+  context; the worker rejects payloads without it.
+
+## Deployment boundary
+
+The LangGraph server (`:2024` in dev) trusts the sanitized identity headers.
+It must only be reachable from the agent runtime — bind it to localhost or a
+private network. Anyone who can reach it directly can impersonate any user.

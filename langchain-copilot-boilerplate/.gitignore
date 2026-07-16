@@ -6,6 +6,11 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.env.docker
+.dev.vars
+
+# Wrangler local state (D1/Vectorize simulators)
+.wrangler/
 
 # Build outputs
 dist/

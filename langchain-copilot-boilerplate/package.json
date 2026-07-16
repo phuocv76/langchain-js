@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.11.0",
-  "description": "Turborepo boilerplate for AI apps with LangChain JS, LangGraph, and CopilotKit.",
+  "description": "Agent runtime boilerplate: Hono + CopilotKit runtime + LangGraph with tools for an existing REST API.",
   "scripts": {
     "dev": "turbo run dev",
     "dev:agent": "turbo run dev --filter=@repo/agent",
