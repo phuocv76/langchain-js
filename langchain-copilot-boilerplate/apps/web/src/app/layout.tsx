@@ -2,14 +2,13 @@
 import type { Metadata } from 'next';
 
 // Internal
-import { APP_NAME } from '@repo/shared';
 import { Providers } from '@/components/providers/providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: APP_NAME,
+  title: 'AI Assistant',
   description:
-    'ChatGPT-style AI app built with LangChain, LangGraph, and CopilotKit.',
+    'Full-window AI chat built with LangChain, LangGraph, and CopilotKit.',
 };
 
 const RootLayout = ({

@@ -1,7 +1,12 @@
 'use client';
 
 // Libs for third party
-import { signInWithPopup, signOut } from 'firebase/auth';
+import {
+  onIdTokenChanged,
+  signInWithPopup,
+  signOut,
+  type User,
+} from 'firebase/auth';
 import {
   createContext,
   useCallback,
@@ -12,110 +17,74 @@ import {
 } from 'react';
 
 // Internal
-import type { AuthSession } from '@/lib/auth/validation';
-import { isFirebaseConfigured } from '@/lib/firebase/config';
-import { getFirebaseAuth, getGoogleProvider } from '@/lib/firebase/client';
+import {
+  getFirebaseAuth,
+  getGoogleProvider,
+  isFirebaseConfigured,
+} from '@/lib/firebase';
 
 type AuthContextValue = {
-  user: AuthSession | null;
+  user: User | null;
+  /** Fresh Firebase ID token; rotated by the SDK before it expires (~1h). */
+  idToken: string | null;
   isLoading: boolean;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  refreshSession: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-const establishServerSession = async (
-  idToken: string,
-): Promise<AuthSession> => {
-  const response = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken }),
-  });
-
-  if (!response.ok) {
-    const data = (await response.json().catch(() => null)) as {
-      error?: string;
-    } | null;
-    throw new Error(data?.error ?? 'Unable to sign in');
-  }
-
-  const data = (await response.json()) as { user: AuthSession };
-  return data.user;
-};
-
-const fetchServerSession = async (): Promise<AuthSession | null> => {
-  const response = await fetch('/api/auth/session', { cache: 'no-store' });
-  if (!response.ok) {
-    return null;
-  }
-
-  const data = (await response.json()) as { user: AuthSession | null };
-  return data.user;
-};
 
 export const AuthProvider = ({
   children,
 }: {
   readonly children: React.ReactNode;
 }): React.JSX.Element => {
-  const [user, setUser] = useState<AuthSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const refreshSession = useCallback(async (): Promise<void> => {
-    setUser(await fetchServerSession());
-  }, []);
+  const [user, setUser] = useState<User | null>(null);
+  const [idToken, setIdToken] = useState<string | null>(null);
+  // NEXT_PUBLIC_* config is inlined at build time, so this initial value is
+  // identical on server and client; without Firebase there is no session to
+  // wait for.
+  const [isLoading, setIsLoading] = useState(() => isFirebaseConfigured());
 
   useEffect(() => {
-    let active = true;
+    if (!isFirebaseConfigured()) {
+      return;
+    }
 
-    void fetchServerSession().then((session) => {
-      if (active) {
-        setUser(session);
-        setIsLoading(false);
+    // Fires on sign-in, sign-out, and every SDK-driven token refresh, so the
+    // context always holds a token the agent will accept.
+    return onIdTokenChanged(getFirebaseAuth(), (nextUser) => {
+      setUser(nextUser);
+      setIsLoading(false);
+
+      if (!nextUser) {
+        setIdToken(null);
+        return;
       }
-    });
 
-    return () => {
-      active = false;
-    };
+      void nextUser.getIdToken().then(setIdToken);
+    });
   }, []);
 
   const signInWithGoogle = useCallback(async (): Promise<void> => {
     if (!isFirebaseConfigured()) {
       throw new Error(
-        'Firebase is not configured. Check your environment variables.',
+        'Firebase is not configured. Set NEXT_PUBLIC_FIREBASE_* in apps/web/.env.',
       );
     }
 
-    const auth = getFirebaseAuth();
-    const credential = await signInWithPopup(auth, getGoogleProvider());
-    const idToken = await credential.user.getIdToken();
-    const session = await establishServerSession(idToken);
-    await signOut(auth);
-    setUser(session);
+    await signInWithPopup(getFirebaseAuth(), getGoogleProvider());
   }, []);
 
   const logout = useCallback(async (): Promise<void> => {
     if (isFirebaseConfigured()) {
       await signOut(getFirebaseAuth());
     }
-
-    await fetch('/api/auth/logout', { method: 'POST' });
-    setUser(null);
   }, []);
 
   const value = useMemo(
-    () => ({
-      user,
-      isLoading,
-      signInWithGoogle,
-      logout,
-      refreshSession,
-    }),
-    [user, isLoading, signInWithGoogle, logout, refreshSession],
+    () => ({ user, idToken, isLoading, signInWithGoogle, logout }),
+    [user, idToken, isLoading, signInWithGoogle, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
