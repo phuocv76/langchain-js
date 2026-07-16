@@ -13,7 +13,7 @@ const BASE_PATH = '/copilotkit';
  * @param deploymentUrl - URL of the LangGraph server hosting the graphs.
  * @returns A `(Request) => Promise<Response>` handler mounted by Hono.
  */
-export const createCopilotKitHandler = (
+const createCopilotKitHandler = (
   deploymentUrl: string,
 ): ((request: Request) => Promise<Response>) => {
   const runtime = createCopilotRuntime(deploymentUrl);

@@ -10,12 +10,12 @@ describe('REST CopilotKit context adapter', () => {
   });
 
   it('serializes request context for the agent', () => {
-    const state = buildRestCopilotKitState({ locale: 'en', tenantId: 't-1' });
+    const state = buildRestCopilotKitState({ locale: 'en', channel: 'web' });
 
     assert.deepEqual(state?.copilotkit.context, [
       {
         description: 'REST API request context',
-        value: '{"locale":"en","tenantId":"t-1"}',
+        value: '{"locale":"en","channel":"web"}',
       },
     ]);
   });

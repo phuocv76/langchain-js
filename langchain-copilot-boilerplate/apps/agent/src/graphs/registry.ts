@@ -23,6 +23,7 @@ export const AGENT_REGISTRY: readonly AgentDefinition[] = [
   {
     id: DEFAULT_AGENT_ID,
     graphId: DEFAULT_AGENT_ID,
-    description: 'Default conversational agent with bounded conversation memory.',
+    description:
+      'Workspace assistant: employee/project/time-off lookups over the product API, with bounded conversation memory.',
   },
 ];

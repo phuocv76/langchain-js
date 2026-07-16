@@ -8,6 +8,8 @@
     "dev": "concurrently -n langgraph,api -c magenta,cyan \"pnpm run dev:graph\" \"pnpm run dev:api\"",
     "dev:graph": "langgraphjs dev --port 2024 --no-browser",
     "dev:api": "tsx watch --env-file=.env src/server.ts",
+    "dev:server": "docker compose -f docker-compose.langgraph.yml up --build",
+    "dev:server:down": "docker compose -f docker-compose.langgraph.yml down",
     "build": "tsup --config tsup.config.ts",
     "start": "node --env-file=.env dist/server.js",
     "lint": "eslint .",

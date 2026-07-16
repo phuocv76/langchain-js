@@ -27,7 +27,7 @@ export const createCopilotRuntime = (deploymentUrl: string): CopilotRuntime => {
       allow: [
         'x-agent-request-id',
         'x-agent-user-id',
-        'x-agent-tenant-id',
+        'x-agent-user-email',
         'x-agent-roles',
       ],
     },

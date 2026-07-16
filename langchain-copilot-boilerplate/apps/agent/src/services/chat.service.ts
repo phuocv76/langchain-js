@@ -8,7 +8,7 @@ import {
 } from '@langchain/core/messages';
 
 // Internal
-import { compileWithMemory } from '@agent/agents/default-agent/index.js';
+import { compileWithMemory } from '@agent/agents/workspace-agent/index.js';
 import { buildRestCopilotKitState } from '@agent/services/chat-context.js';
 
 let cachedGraph: ReturnType<typeof compileWithMemory> | undefined;
