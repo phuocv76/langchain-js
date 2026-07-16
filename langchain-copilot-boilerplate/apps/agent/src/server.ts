@@ -5,11 +5,14 @@ import { cors } from 'hono/cors';
 import { logger as honoLogger } from 'hono/logger';
 
 // Internal
-import { corsOrigins, env } from '@agent/config/env.js';
+import {
+  assertUserVerificationConfigured,
+  corsOrigins,
+  env,
+} from '@agent/config/env.js';
 import { handleCopilotKitRequest } from '@agent/copilotkit.js';
 import { errorHandler } from '@agent/middleware/error.js';
 import { requireAgentUser } from '@agent/middleware/agent-user-auth.js';
-import { requireRuntimeSecret } from '@agent/middleware/runtime-auth.js';
 import { chatRoute } from '@agent/routes/chat.route.js';
 import { healthRoute } from '@agent/routes/health.route.js';
 import { memoryRoute } from '@agent/routes/memory.route.js';
@@ -22,31 +25,26 @@ app.use(
   '*',
   cors({
     origin: corsOrigins,
-    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: [
       'Content-Type',
+      // Firebase ID token from the chat frontend.
       'Authorization',
       // CopilotKit client request headers.
       'X-CopilotCloud-Public-Api-Key',
-      'x-user-id',
-      'x-user-name',
-      'x-agent-user-token',
+      'X-Request-Id',
     ],
   }),
 );
 
 app.onError(errorHandler);
 
-// Agent execution is server-to-server in production. Health remains public.
-app.use('/chat', requireRuntimeSecret);
-app.use('/chat/*', requireRuntimeSecret);
-app.use('/copilotkit', requireRuntimeSecret);
-app.use('/copilotkit/*', requireRuntimeSecret);
-app.use('/copilotkit', requireAgentUser);
+// The chat frontend calls this service directly with a Firebase bearer token.
+// Every agent endpoint requires a verified end user; health remains public.
+// A '/x/*' pattern matches both '/x' and its subpaths, so one registration
+// per route is enough — registering '/x' as well would run auth twice.
+app.use('/chat/*', requireAgentUser);
 app.use('/copilotkit/*', requireAgentUser);
-app.use('/memory', requireRuntimeSecret);
-app.use('/memory/*', requireRuntimeSecret);
-app.use('/memory', requireAgentUser);
 app.use('/memory/*', requireAgentUser);
 
 // REST endpoints.
@@ -57,6 +55,10 @@ app.route('/memory', memoryRoute);
 // CopilotKit runtime (proxies to the LangGraph dev server).
 app.all('/copilotkit', (c) => handleCopilotKitRequest(c.req.raw));
 app.all('/copilotkit/*', (c) => handleCopilotKitRequest(c.req.raw));
+
+// This process serves browsers directly, so production must be able to
+// verify end-user tokens before it starts accepting requests.
+assertUserVerificationConfigured();
 
 serve({ fetch: app.fetch, port: env.AGENT_PORT }, (info) => {
   logger.info(`Agent API ready at http://localhost:${info.port}`);

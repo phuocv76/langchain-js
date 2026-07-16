@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import type { MiddlewareHandler } from 'hono';
 
 // Internal
+import { allowedEmailDomains } from '@agent/config/env.js';
 import {
   getFirebaseAdminAuth,
   isFirebaseAdminConfigured,
@@ -13,20 +14,59 @@ import {
 export interface AgentUserContext {
   readonly requestId: string;
   readonly userId: string;
-  readonly tenantId: string;
+  /** Verified email — the product API keys users by it. */
+  readonly email: string;
   readonly roles: readonly string[];
 }
 
-const readRoles = (value: unknown): readonly string[] | undefined =>
+/** Extracts the token from an `Authorization: Bearer <token>` header value. */
+export const readBearerToken = (
+  authorization: string | undefined,
+): string | undefined => {
+  if (!authorization) return undefined;
+  const [scheme, token, ...rest] = authorization.trim().split(/\s+/);
+  return scheme?.toLowerCase() === 'bearer' && token && rest.length === 0
+    ? token
+    : undefined;
+};
+
+export const readRoles = (value: unknown): readonly string[] | undefined =>
   Array.isArray(value) && value.every((role) => typeof role === 'string')
     ? value
     : undefined;
 
 /**
- * Verifies the server-forwarded Firebase session cookie and replaces it with
- * sanitized, non-secret identity headers for downstream graph transport.
+ * Restricts access to the configured email domains.
+ *
+ * The email must be verified: with providers like email/password anyone can
+ * register an address on an allowed domain without owning it, so an
+ * unverified email proves nothing.
+ */
+export const isAllowedEmail = (
+  email: string | undefined,
+  emailVerified: boolean | undefined,
+  domains: readonly string[],
+): boolean => {
+  if (domains.length === 0) return true;
+  if (!email || emailVerified !== true) return false;
+  const domain = email.split('@').pop()?.toLowerCase();
+  return Boolean(domain && domains.includes(domain));
+};
+
+/**
+ * Verifies the caller's Firebase ID token (sent by the chat frontend as
+ * `Authorization: Bearer`) and replaces it with sanitized, non-secret identity
+ * headers for downstream graph transport. The raw credential never travels
+ * past this middleware.
  */
 export const requireAgentUser: MiddlewareHandler = async (context, next) => {
+  // Mounted on both '/x' and '/x/*', which can both match the same request.
+  // The first pass verified the token and deleted the credential header, so a
+  // second pass must pass through instead of failing on the missing header.
+  if (context.get('agentUser')) {
+    return next();
+  }
+
   if (!isFirebaseAdminConfigured()) {
     return context.json(
       { ok: false, error: 'Agent Firebase authentication is not configured' },
@@ -34,22 +74,22 @@ export const requireAgentUser: MiddlewareHandler = async (context, next) => {
     );
   }
 
-  const sessionCookie = context.req.header('x-agent-user-token');
-  if (!sessionCookie) {
+  const idToken = readBearerToken(context.req.header('authorization'));
+  if (!idToken) {
     return context.json({ ok: false, error: 'Unauthorized' }, 401);
   }
 
   try {
-    const decoded = await getFirebaseAdminAuth().verifySessionCookie(
-      sessionCookie,
-      true,
-    );
-    const tenantId = decoded.tenant_id;
-    const roles = readRoles(decoded.roles);
+    const decoded = await getFirebaseAdminAuth().verifyIdToken(idToken, true);
 
-    if (typeof tenantId !== 'string' || !tenantId || !roles) {
+    // The email also identifies the user toward the product API, so an
+    // account without one cannot act anywhere downstream.
+    if (
+      !decoded.email ||
+      !isAllowedEmail(decoded.email, decoded.email_verified, allowedEmailDomains)
+    ) {
       return context.json(
-        { ok: false, error: 'Required tenant_id or roles claims are missing' },
+        { ok: false, error: 'This account is not allowed to use the assistant' },
         403,
       );
     }
@@ -57,18 +97,24 @@ export const requireAgentUser: MiddlewareHandler = async (context, next) => {
     const user: AgentUserContext = {
       requestId: context.req.header('x-request-id') ?? randomUUID(),
       userId: decoded.uid,
-      tenantId,
-      roles,
+      email: decoded.email,
+      roles: readRoles(decoded.roles) ?? [],
     };
     const headers = context.req.raw.headers;
-    headers.delete('x-agent-user-token');
+    headers.delete('authorization');
     headers.set('x-agent-request-id', user.requestId);
     headers.set('x-agent-user-id', user.userId);
-    headers.set('x-agent-tenant-id', user.tenantId);
+    headers.set('x-agent-user-email', user.email);
     headers.set('x-agent-roles', encodeURIComponent(JSON.stringify(user.roles)));
     context.set('agentUser', user);
     await next();
-  } catch {
+  } catch (error) {
+    // Log the verification failure reason (never the token) — otherwise a
+    // misconfigured Firebase project is indistinguishable from a bad token.
+    console.error(
+      '[agent-user-auth] ID token verification failed:',
+      error instanceof Error ? error.message : error,
+    );
     return context.json({ ok: false, error: 'Unauthorized' }, 401);
   }
 };

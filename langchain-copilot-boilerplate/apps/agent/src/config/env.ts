@@ -49,39 +49,56 @@ export const envSchema = z
     OPENAI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(45_000),
     /** One retry keeps transient-error recovery without multiplying latency. */
     OPENAI_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(1),
-    /** Shared server-to-server secret used by the Next.js CopilotKit proxy. */
-    COPILOT_RUNTIME_SECRET: optionalSecret.pipe(z.string().min(32).optional()),
+    /**
+     * Comma-separated email domains allowed to use the assistant
+     * (e.g. "asnet.com.vn"). Empty means every verified account is allowed.
+     */
+    ALLOWED_EMAIL_DOMAINS: z.string().optional(),
+    /** Base URL of the existing product REST API that agent tools call. */
+    API_BASE_URL: z.string().url().optional(),
+    /** Service credential the agent presents to the product REST API. */
+    API_SERVICE_TOKEN: optionalSecret,
+    /** Bound external API waits so a slow endpoint cannot stall a chat run. */
+    API_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+    /** Memory worker endpoint; a bare URL is enough for local `wrangler dev`. */
     MEMORY_WORKER_URL: z.string().url().optional(),
+    /** Cloudflare Access service token pair, required only for deployed workers. */
     CF_ACCESS_CLIENT_ID: optionalSecret,
     CF_ACCESS_CLIENT_SECRET: optionalSecret,
   })
   .superRefine((value, context) => {
-    const memoryValues = [
-      value.MEMORY_WORKER_URL,
-      value.CF_ACCESS_CLIENT_ID,
-      value.CF_ACCESS_CLIENT_SECRET,
-    ];
-    const memoryConfiguredCount = memoryValues.filter(Boolean).length;
+    const accessValues = [value.CF_ACCESS_CLIENT_ID, value.CF_ACCESS_CLIENT_SECRET];
+    const accessConfiguredCount = accessValues.filter(Boolean).length;
 
-    if (
-      memoryConfiguredCount > 0 &&
-      memoryConfiguredCount < memoryValues.length
-    ) {
+    if (accessConfiguredCount === 1) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['CF_ACCESS_CLIENT_ID'],
+        message:
+          'CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET must be configured together',
+      });
+    }
+
+    if (accessConfiguredCount > 0 && !value.MEMORY_WORKER_URL) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['MEMORY_WORKER_URL'],
         message:
-          'MEMORY_WORKER_URL, CF_ACCESS_CLIENT_ID, and CF_ACCESS_CLIENT_SECRET must be configured together',
+          'CF_ACCESS_CLIENT_ID/CF_ACCESS_CLIENT_SECRET require MEMORY_WORKER_URL',
       });
     }
 
-    if (value.NODE_ENV === 'production' && !value.COPILOT_RUNTIME_SECRET) {
+    const apiValues = [value.API_BASE_URL, value.API_SERVICE_TOKEN];
+    const apiConfiguredCount = apiValues.filter(Boolean).length;
+
+    if (apiConfiguredCount > 0 && apiConfiguredCount < apiValues.length) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['COPILOT_RUNTIME_SECRET'],
-        message: 'COPILOT_RUNTIME_SECRET is required in production',
+        path: ['API_BASE_URL'],
+        message: 'API_BASE_URL and API_SERVICE_TOKEN must be configured together',
       });
     }
+
   });
 
 /** Type of the validated environment. */
@@ -100,7 +117,36 @@ if (!parsed.success) {
 /** Validated, typed environment. */
 export const env: Env = parsed.data;
 
+/**
+ * Asserts that end-user token verification is configured in production.
+ *
+ * Only the Hono runtime serves browsers, so only its bootstrap calls this.
+ * The LangGraph server process imports the same env module but sits behind
+ * the trust boundary (verified `x-agent-*` headers) and must not require
+ * Firebase credentials — its container runs with NODE_ENV=production.
+ */
+export const assertUserVerificationConfigured = (candidate: Env = env): void => {
+  if (
+    candidate.NODE_ENV === 'production' &&
+    !(
+      candidate.FIREBASE_PROJECT_ID &&
+      candidate.FIREBASE_CLIENT_EMAIL &&
+      candidate.FIREBASE_PRIVATE_KEY
+    )
+  ) {
+    throw new Error(
+      'FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are required in production',
+    );
+  }
+};
+
 /** Parsed list of allowed CORS origins. */
 export const corsOrigins: string[] = env.CORS_ORIGINS.split(',')
   .map((origin) => origin.trim())
+  .filter(Boolean);
+
+/** Parsed, lowercased list of email domains allowed to use the assistant. */
+export const allowedEmailDomains: string[] = (env.ALLOWED_EMAIL_DOMAINS ?? '')
+  .split(',')
+  .map((domain) => domain.trim().toLowerCase())
   .filter(Boolean);
