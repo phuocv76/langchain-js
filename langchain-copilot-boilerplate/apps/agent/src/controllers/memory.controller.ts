@@ -2,10 +2,13 @@
 import type { Context } from 'hono';
 
 // Internal
+import { env } from '@agent/config/env.js';
 import type { AgentUserContext } from '@agent/middleware/agent-user-auth.js';
 import {
+  deleteMemoryThread,
   listMemoryThread,
   listMemoryThreads,
+  renameMemoryThread,
   type MemoryIdentity,
 } from '@agent/services/memory-client.js';
 
@@ -14,7 +17,6 @@ const identityFor = (context: Context, threadId: string): MemoryIdentity => {
   return {
     requestId: user.requestId,
     userId: user.userId,
-    tenantId: user.tenantId,
     threadId,
   };
 };
@@ -24,14 +26,73 @@ export const listThreads = async (context: Context): Promise<Response> => {
   const threads = await listMemoryThreads({
     requestId: user.requestId,
     userId: user.userId,
-    tenantId: user.tenantId,
     threadId: '__thread-list__',
   });
   return context.json({ threads });
 };
 
-export const listThreadMessages = async (context: Context): Promise<Response> => {
+/**
+ * Chat messages of a thread, read from the user-scoped D1 transcript.
+ *
+ * Powers instant history when the CopilotKit runtime's in-memory replay is
+ * gone (process restart), and stays complete even after the engine compacts
+ * old messages into a summary — the transcript is the full product ledger.
+ * Each message carries the engine-assigned id recorded at write time, so a
+ * later run's snapshot merges with the injected history instead of
+ * duplicating it. Rows that predate message_id fall back to their row id.
+ */
+export const listThreadHistoryMessages = async (
+  context: Context,
+): Promise<Response> => {
   const threadId = context.req.param('threadId');
   if (!threadId) return context.json({ error: 'threadId is required' }, 400);
-  return context.json({ turns: await listMemoryThread(identityFor(context, threadId)) });
+
+  const turns = await listMemoryThread(identityFor(context, threadId));
+  const messages = [...turns]
+    .reverse() // worker returns newest first; the transcript reads oldest first
+    .filter((turn) => turn.role === 'user' || turn.role === 'assistant')
+    .map((turn) => ({
+      id: turn.message_id ?? turn.id,
+      role: turn.role as 'user' | 'assistant',
+      content: turn.content,
+    }))
+    .filter((message) => message.content);
+  return context.json({ messages });
+};
+
+export const renameThread = async (context: Context): Promise<Response> => {
+  const threadId = context.req.param('threadId');
+  if (!threadId) return context.json({ error: 'threadId is required' }, 400);
+  const body: unknown = await context.req.json().catch(() => undefined);
+  const title =
+    body && typeof body === 'object'
+      ? (body as Record<string, unknown>).title
+      : undefined;
+  if (typeof title !== 'string' || !title.trim() || title.length > 200) {
+    return context.json({ error: 'title must be a non-empty string (max 200 chars)' }, 400);
+  }
+  await renameMemoryThread(identityFor(context, threadId), title.trim());
+  return context.json({ ok: true });
+};
+
+export const deleteThread = async (context: Context): Promise<Response> => {
+  const threadId = context.req.param('threadId');
+  if (!threadId) return context.json({ error: 'threadId is required' }, 400);
+  await deleteMemoryThread(identityFor(context, threadId));
+
+  // Also drop the LangGraph checkpoint so the conversation content is truly
+  // gone, not just hidden from the sidebar. Best-effort: the thread may
+  // predate the current server storage or already be deleted.
+  try {
+    await fetch(
+      `${env.LANGGRAPH_DEPLOYMENT_URL}/threads/${encodeURIComponent(threadId)}`,
+      { method: 'DELETE' },
+    );
+  } catch (error) {
+    console.warn(
+      '[memory] checkpoint delete skipped:',
+      error instanceof Error ? error.message : 'unknown error',
+    );
+  }
+  return context.json({ ok: true });
 };
