@@ -18,5 +18,23 @@
   ],
   "ai": {
     "binding": "AI"
+  },
+  "env": {
+    // Local-only profile for `pnpm dev:offline`: the AI binding always proxies
+    // to Cloudflare (needs `wrangler login`) and Vectorize has no local mode,
+    // so this env drops both and the Worker degrades to recent-turn recall.
+    // Never deploy this env.
+    "offline": {
+      "vars": {
+        "REQUIRE_CF_ACCESS": "false"
+      },
+      "d1_databases": [
+        {
+          "binding": "MEMORY_DB",
+          "database_name": "agent-memory",
+          "database_id": "replace-with-your-d1-database-id"
+        }
+      ]
+    }
   }
 }

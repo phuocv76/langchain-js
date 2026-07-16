@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local `wrangler dev` only.
+# Local dev traffic never crosses Cloudflare Access, so the assertion-header
+# check must be disabled. Deployed Workers ignore .dev.vars and keep Access on.
+REQUIRE_CF_ACCESS=false
