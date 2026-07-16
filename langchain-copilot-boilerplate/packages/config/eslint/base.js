@@ -24,8 +24,6 @@ export const baseConfig = [
     },
   },
   {
-    ignores: ['dist/**', '.next/**', 'node_modules/**', '.turbo/**'],
+    ignores: ['dist/**', 'node_modules/**', '.turbo/**'],
   },
 ];
-
-export default baseConfig;

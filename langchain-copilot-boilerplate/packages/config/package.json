@@ -3,15 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Shared TypeScript, ESLint, and Prettier configuration.",
+  "description": "Shared TypeScript and ESLint configuration.",
   "exports": {
     "./eslint/base": "./eslint/base.js",
     "./eslint/next": "./eslint/next.js",
-    "./prettier": "./prettier/index.js",
     "./typescript/base": "./typescript/base.json",
-    "./typescript/node": "./typescript/node.json",
     "./typescript/next": "./typescript/next.json",
-    "./typescript/react-library": "./typescript/react-library.json"
+    "./typescript/node": "./typescript/node.json"
   },
   "dependencies": {
     "@eslint/js": "^9.17.0",

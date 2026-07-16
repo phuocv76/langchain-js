@@ -6,8 +6,7 @@
   "description": "Framework-agnostic constants and utilities shared across apps.",
   "exports": {
     ".": "./src/index.ts",
-    "./constants": "./src/constants.ts",
-    "./suggested-prompts": "./src/suggested-prompts.ts"
+    "./constants": "./src/constants.ts"
   },
   "scripts": {
     "lint": "eslint .",

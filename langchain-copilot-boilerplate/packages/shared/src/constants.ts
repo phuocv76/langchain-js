@@ -1,5 +1,5 @@
-/** Graph/agent id shared by the LangGraph registration, runtime, and frontend. */
-export const DEFAULT_AGENT_ID = 'defaultAgent' as const;
-
-/** Human-facing product name used across UI surfaces. */
-export const APP_NAME = 'LangChain Copilot' as const;
+/**
+ * Graph/agent id shared by the LangGraph registration, runtime, and frontend.
+ * Must match the graph key in `apps/agent/langgraph.json`.
+ */
+export const DEFAULT_AGENT_ID = 'workspaceAgent' as const;
