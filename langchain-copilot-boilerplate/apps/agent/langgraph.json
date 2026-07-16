@@ -2,7 +2,7 @@
   "node_version": "20",
   "dependencies": ["."],
   "graphs": {
-    "defaultAgent": "./src/agents/default-agent/graph.ts:graph"
+    "workspaceAgent": "./src/agents/workspace-agent/graph.ts:graph"
   },
   "env": ".env"
 }

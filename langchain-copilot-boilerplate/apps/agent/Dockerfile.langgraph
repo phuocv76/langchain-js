@@ -1,0 +1,27 @@
+# LangGraph server image for this pnpm monorepo.
+#
+# The official `langgraphjs build` generator runs `npm i` against apps/agent
+# alone, which cannot resolve workspace:* dependencies (@repo/prompts,
+# @repo/types). This Dockerfile keeps the official runtime image but installs
+# the whole workspace with pnpm instead.
+#
+# Build context must be the monorepo root:
+#   docker build -f apps/agent/Dockerfile.langgraph .
+# Node 22+: pnpm 11 depends on the node:sqlite builtin.
+FROM langchain/langgraphjs-api:22
+
+# corepack is broken on this base image's Node build; install pnpm directly.
+RUN npm i -g pnpm@11.11.0
+
+ADD . /deps/workspace
+WORKDIR /deps/workspace
+RUN pnpm install --frozen-lockfile
+
+ENV LANGSERVE_GRAPHS='{"workspaceAgent":"./src/agents/workspace-agent/graph.ts:graph"}'
+# Unlike the dev server, the licensed server only copies request headers into
+# the run configurable when opted in. The trusted agent identity travels as
+# x-agent-* headers (see docs/trusted-agent-context.md), so the graph cannot
+# resolve the acting user without this.
+ENV LANGGRAPH_HTTP='{"configurable_headers":{"include":["x-agent-*"]}}'
+WORKDIR /deps/workspace/apps/agent
+RUN (test ! -f /api/langgraph_api/js/build.mts && echo "Prebuild script not found, skipping") || tsx /api/langgraph_api/js/build.mts
