@@ -2,6 +2,16 @@ packages:
   - 'apps/*'
   - 'packages/*'
 
+# Force a single instance of the LangChain stack. Two langchain versions
+# (direct dep vs @ag-ui/langgraph's) create duplicate @langchain/core and
+# @langchain/langgraph copies, which breaks channel identity and message
+# class checks across the graph. LangGraph is pinned to 1.4.4: later 1.4.x
+# type definitions reject this zod release's StateSchema fields.
+overrides:
+  langchain: 1.5.3
+  '@langchain/core': 1.2.2
+  '@langchain/langgraph': 1.4.4
+
 # Allow native/build scripts required by these dependencies (pnpm >= 10).
 onlyBuiltDependencies:
   - '@scarf/scarf'
