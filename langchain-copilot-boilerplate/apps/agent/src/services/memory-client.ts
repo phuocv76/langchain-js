@@ -4,26 +4,35 @@ import { env } from '@agent/config/env.js';
 export interface MemoryIdentity {
   readonly requestId: string;
   readonly userId: string;
-  readonly tenantId: string;
   readonly threadId: string;
 }
 
 export interface MemoryTurn extends MemoryIdentity {
   readonly role: 'user' | 'assistant' | 'tool';
   readonly content: string;
+  /** Engine-assigned chat message id; lets history reads dedupe against live runs. */
+  readonly messageId?: string;
   readonly toolMetadata?: unknown;
 }
 
-export class MemoryServiceError extends Error {
+class MemoryServiceError extends Error {
   override name = 'MemoryServiceError';
 }
 
-const isConfigured = (): boolean =>
-  Boolean(
-    env.MEMORY_WORKER_URL &&
-      env.CF_ACCESS_CLIENT_ID &&
-      env.CF_ACCESS_CLIENT_SECRET,
-  );
+const isConfigured = (): boolean => Boolean(env.MEMORY_WORKER_URL);
+
+/**
+ * The Cloudflare Access service-token pair is only needed to cross the
+ * Access boundary in front of a deployed worker; local `wrangler dev`
+ * is reached directly, so the headers are attached only when configured.
+ */
+const accessHeaders = (): Record<string, string> =>
+  env.CF_ACCESS_CLIENT_ID && env.CF_ACCESS_CLIENT_SECRET
+    ? {
+        'CF-Access-Client-Id': env.CF_ACCESS_CLIENT_ID,
+        'CF-Access-Client-Secret': env.CF_ACCESS_CLIENT_SECRET,
+      }
+    : {};
 
 const requestMemoryService = async <T>(
   path: string,
@@ -36,8 +45,7 @@ const requestMemoryService = async <T>(
     method,
     headers: {
       'Content-Type': 'application/json',
-      'CF-Access-Client-Id': env.CF_ACCESS_CLIENT_ID!,
-      'CF-Access-Client-Secret': env.CF_ACCESS_CLIENT_SECRET!,
+      ...accessHeaders(),
     },
     body: JSON.stringify(body),
   });
@@ -74,12 +82,29 @@ export const deleteMemoryThread = async (identity: MemoryIdentity): Promise<void
   await requestMemoryService('/v1/threads', 'DELETE', identity);
 };
 
+export const renameMemoryThread = async (
+  identity: MemoryIdentity,
+  title: string,
+): Promise<void> => {
+  await requestMemoryService('/v1/threads/rename', 'POST', { ...identity, title });
+};
+
+export interface MemoryTurnRecord {
+  readonly id: string;
+  readonly role: string;
+  readonly content: string;
+  readonly message_id: string | null;
+  readonly created_at: string;
+}
+
 export const listMemoryThread = async (
   identity: MemoryIdentity,
-): Promise<readonly { id: string; role: string; content: string; created_at: string }[]> => {
-  const result = await requestMemoryService<{
-    turns: Array<{ id: string; role: string; content: string; created_at: string }>;
-  }>('/v1/turns/list', 'POST', identity);
+): Promise<readonly MemoryTurnRecord[]> => {
+  const result = await requestMemoryService<{ turns: MemoryTurnRecord[] }>(
+    '/v1/turns/list',
+    'POST',
+    identity,
+  );
   return result?.turns ?? [];
 };
 
