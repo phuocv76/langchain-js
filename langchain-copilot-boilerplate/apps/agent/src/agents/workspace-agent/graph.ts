@@ -5,10 +5,12 @@ import { createAgent, summarizationMiddleware } from 'langchain';
 
 // Internal
 import { WORKSPACE_AGENT_SYSTEM_PROMPT } from '@agent/agents/workspace-agent/prompt.js';
+import { env } from '@agent/config/env.js';
 import { getChatModel } from '@agent/models/index.js';
 import { durableMemoryMiddleware } from '@agent/middleware/durable-memory.js';
 import { DurableMemoryStateSchema } from '@agent/middleware/durable-memory-state.js';
 import { workspaceToolsMiddleware } from '@agent/middleware/workspace-tools.js';
+import { D1CheckpointSaver } from '@agent/services/d1-checkpoint-saver.js';
 import { tools } from '@agent/tools/index.js';
 
 const copilotkitMiddleware = createCopilotkitMiddleware({
@@ -34,8 +36,8 @@ const buildWorkspaceAgent = () => {
       workspaceToolsMiddleware,
       summarizationMiddleware({
         model,
-        trigger: { messages: 4 },
-        keep: { messages: 1 },
+        trigger: { messages: 16 },
+        keep: { messages: 8 },
       }),
       // Bridges the graph to CopilotKit for streamed tokens and client tools.
       copilotkitMiddleware,
@@ -43,20 +45,27 @@ const buildWorkspaceAgent = () => {
   });
 };
 
-const workspaceAgent = buildWorkspaceAgent();
+/** Compiled workspace graph type shared by every compile variant. */
+export type WorkspaceGraph = ReturnType<typeof buildWorkspaceAgent>['graph'];
 
 /**
- * Compiled graph consumed by the LangGraph dev server.
- * The server provides its own checkpointer/persistence.
+ * Compiles the agent with the durable D1 checkpointer — the short-term
+ * memory for the in-process CopilotKit runs. Conversations survive process
+ * restarts because engine state lives in D1, next to the transcript ledger.
+ * Without a configured memory worker the graph degrades to in-memory
+ * checkpoints (threads reset on restart) instead of failing every run.
+ * Compilation is deferred to first use so importing this module never
+ * requires model credentials (tests exercise the pure helpers around it).
  */
-export const graph = workspaceAgent.graph;
-
-/**
- * Compiles the same agent with in-memory checkpointing.
- * Used by the standalone `POST /chat` REST endpoint (in-process, no dev server).
- */
-export const compileWithMemory = (): typeof graph => {
+export const compileWithDurableCheckpoints = (): WorkspaceGraph => {
   const agent = buildWorkspaceAgent();
-  agent.checkpointer = new MemorySaver();
+  if (env.MEMORY_WORKER_URL) {
+    agent.checkpointer = new D1CheckpointSaver();
+  } else {
+    console.warn(
+      '[workspace-agent] MEMORY_WORKER_URL is not set; using in-memory checkpoints (threads will not survive restarts)',
+    );
+    agent.checkpointer = new MemorySaver();
+  }
   return agent.graph;
 };

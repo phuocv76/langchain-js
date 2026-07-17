@@ -2,9 +2,9 @@
 import type { Context } from 'hono';
 
 // Internal
-import { env } from '@agent/config/env.js';
 import type { AgentUserContext } from '@agent/middleware/agent-user-auth.js';
 import {
+  deleteCheckpointThread,
   deleteMemoryThread,
   listMemoryThread,
   listMemoryThreads,
@@ -80,14 +80,11 @@ export const deleteThread = async (context: Context): Promise<Response> => {
   if (!threadId) return context.json({ error: 'threadId is required' }, 400);
   await deleteMemoryThread(identityFor(context, threadId));
 
-  // Also drop the LangGraph checkpoint so the conversation content is truly
+  // Also drop the engine checkpoints so the conversation content is truly
   // gone, not just hidden from the sidebar. Best-effort: the thread may
-  // predate the current server storage or already be deleted.
+  // predate checkpoint storage or already be deleted.
   try {
-    await fetch(
-      `${env.LANGGRAPH_DEPLOYMENT_URL}/threads/${encodeURIComponent(threadId)}`,
-      { method: 'DELETE' },
-    );
+    await deleteCheckpointThread(identityFor(context, threadId));
   } catch (error) {
     console.warn(
       '[memory] checkpoint delete skipped:',

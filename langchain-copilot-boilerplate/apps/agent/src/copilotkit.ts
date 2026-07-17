@@ -2,21 +2,20 @@
 import { createCopilotRuntimeHandler } from '@copilotkit/runtime/v2';
 
 // Internal
-import { env } from '@agent/config/env.js';
 import { createCopilotRuntime } from '@agent/config/intelligence.js';
 
 const BASE_PATH = '/copilotkit';
 
 /**
  * Builds a CopilotKit v2 fetch handler wired to every agent in the registry.
+ * Agents run in this process; there is no separate agent server behind it.
  *
- * @param deploymentUrl - URL of the LangGraph server hosting the graphs.
  * @returns A `(Request) => Promise<Response>` handler mounted by Hono.
  */
-const createCopilotKitHandler = (
-  deploymentUrl: string,
-): ((request: Request) => Promise<Response>) => {
-  const runtime = createCopilotRuntime(deploymentUrl);
+const createCopilotKitHandler = (): ((
+  request: Request,
+) => Promise<Response>) => {
+  const runtime = createCopilotRuntime();
 
   const multiRouteHandler = createCopilotRuntimeHandler({
     runtime,
@@ -45,6 +44,4 @@ const createCopilotKitHandler = (
 };
 
 /** Shared CopilotKit handler for the local Hono server. */
-export const handleCopilotKitRequest = createCopilotKitHandler(
-  env.LANGGRAPH_DEPLOYMENT_URL,
-);
+export const handleCopilotKitRequest = createCopilotKitHandler();
