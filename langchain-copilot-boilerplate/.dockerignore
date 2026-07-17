@@ -6,10 +6,8 @@ node_modules
 **/dist
 apps/web/.next
 apps/memory-worker/.wrangler
-apps/agent/.langgraph_api
 .env
 **/.env
-**/.env.docker
 **/.dev.vars
 plans
 docs

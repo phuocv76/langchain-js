@@ -11,8 +11,11 @@ tools call through a typed client.
   full-window CopilotKit chat that calls the agent directly from the browser
   (no proxy layer).
 - `apps/agent` — Hono service hosting the CopilotKit runtime
-  (`POST /copilotkit`), streaming REST chat (`POST /chat`), transcript history
-  (`GET /memory/*`), and `GET /health`.
+  (`POST /copilotkit`) with the LangGraph agent running **in-process**,
+  transcript history (`GET /memory/*`), and `GET /health`.
+- `apps/memory-worker` — Cloudflare Worker owning all durable state in D1:
+  the transcript ledger, semantic recall, and the engine's checkpoints
+  (short-term memory).
 - `packages/*` — shared config, types, constants, and prompt builders.
 
 ## Architecture
@@ -20,23 +23,26 @@ tools call through a typed client.
 ```mermaid
 flowchart LR
   UI["apps/web: Next.js<br/>CopilotChat full-window"]
-  subgraph agent [apps/agent: Hono + LangGraph]
+  subgraph agent [apps/agent: Hono, in-process LangGraph]
     Auth["Bearer auth (Firebase ID token)"]
     Runtime["CopilotKit Runtime POST /copilotkit"]
-    LG["LangGraph server :2024"]
+    Bridge["AG-UI bridge (BuiltInAgent)"]
     Graph["workspaceAgent (createAgent)"]
     Tools["Tools -> api-client"]
   end
+  MW["apps/memory-worker (D1):<br/>transcript + checkpoints"]
   API["Existing REST API (separate repo)"]
-  UI -->|Authorization: Bearer + CORS| Auth --> Runtime -->|LangGraphAgent| LG
-  LG --> Graph --> Tools -->|service token + acting-user headers| API
+  UI -->|Authorization: Bearer + CORS| Auth --> Runtime --> Bridge --> Graph
+  Graph --> Tools -->|service token + acting-user headers| API
+  Graph <-->|checkpoints + transcript| MW
 ```
 
 The frontend sends the signed-in user's **Firebase ID token** as
 `Authorization: Bearer`. The agent verifies it (with revocation checking) and,
 when `ALLOWED_EMAIL_DOMAINS` is set, only accepts verified emails on those
-domains (e.g. company accounts). It then forwards only sanitized `x-agent-*`
-identity headers to LangGraph. Tools call the existing REST API with a
+domains (e.g. company accounts). The verified identity is injected into each
+graph run's config — there is no separate agent server, so the raw credential
+never leaves this process. Tools call the existing REST API with a
 **service credential** plus acting-user headers — identity always comes from
 the verified context, never from model arguments.
 
@@ -66,15 +72,20 @@ cp apps/agent/.env.example apps/agent/.env
 cp apps/web/.env.example apps/web/.env
 # set NEXT_PUBLIC_FIREBASE_* (same Firebase project as the agent)
 
-# 3. Run everything (web + LangGraph dev server + Hono API)
+# 3. Run everything (web + agent)
 pnpm dev
+
+# Optional but recommended: durable memory + checkpoints in local D1
+pnpm --filter @repo/memory-worker dev
 ```
 
 - Web app: http://localhost:3000
-- Agent API: http://localhost:4000 (`/health`, `/chat`, `/copilotkit`, `/memory`)
-- LangGraph dev server: http://localhost:2024
+- Agent API: http://localhost:4000 (`/health`, `/copilotkit`, `/memory`)
+- Memory worker (optional): http://localhost:8788 — set `MEMORY_WORKER_URL`
+  in `apps/agent/.env`. Without it the agent still chats, but threads reset
+  when the process restarts (in-memory checkpoints, no transcript history).
 
-Note: `/copilotkit`, `/chat`, and `/memory` require a signed-in Firebase user.
+Note: `/copilotkit` and `/memory` require a signed-in Firebase user.
 Set `ALLOWED_EMAIL_DOMAINS` to restrict access to your company's accounts.
 Without Firebase env vars the endpoints return 503.
 
@@ -102,7 +113,7 @@ the header via `copilotkit.setHeaders()`; see
 ### Useful scripts
 
 ```bash
-pnpm dev            # run web + agent (LangGraph + API)
+pnpm dev            # run web + agent
 pnpm dev:agent      # agent only
 pnpm dev:web        # web only
 pnpm typecheck      # type-check every package
@@ -115,8 +126,9 @@ pnpm format         # format with Prettier
 
 ```
 apps/
-  web/     Next.js frontend (Firebase sign-in + full-window CopilotChat)
-  agent/   LangGraph agent + Hono API + CopilotKit runtime
+  web/           Next.js frontend (Firebase sign-in + full-window CopilotChat)
+  agent/         in-process LangGraph agent + Hono API + CopilotKit runtime
+  memory-worker/ Cloudflare Worker: D1 transcript ledger + engine checkpoints
 packages/
   config/  shared tsconfig / eslint
   types/   shared TypeScript types
@@ -142,8 +154,9 @@ these packages, and re-verify graph construction (`pnpm dev`) after.
   `apps/agent/src/tools/index.ts`. Take the acting identity from the trusted
   agent context (see `middleware/durable-memory.ts` → `wrapToolCall`), never
   from model-provided arguments.
-- **Add an agent**: create `apps/agent/src/agents/<name>/graph.ts`, register it
-  in `apps/agent/langgraph.json` and `apps/agent/src/graphs/registry.ts`, then
+- **Add an agent**: create `apps/agent/src/agents/<name>/graph.ts` plus an
+  AG-UI bridge (see `workspace-agent/agui-bridge.ts`), register it in
+  `apps/agent/src/graphs/registry.ts` and `config/intelligence.ts`, then
   point the frontend `CopilotChat agentId=...` at it.
 
 See [apps/agent/README.md](apps/agent/README.md) and

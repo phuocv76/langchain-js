@@ -31,7 +31,6 @@ export const envSchema = z
       .enum(['development', 'test', 'production'])
       .default('development'),
     AGENT_PORT: z.coerce.number().int().positive().default(4000),
-    LANGGRAPH_DEPLOYMENT_URL: z.string().url().default('http://localhost:2024'),
     CORS_ORIGINS: z
       .string()
       .refine(isValidOriginList, 'Must be a comma-separated list of valid URLs')

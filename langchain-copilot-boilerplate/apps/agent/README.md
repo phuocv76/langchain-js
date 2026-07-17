@@ -1,16 +1,17 @@
 # @repo/agent
 
-LangChain + LangGraph agent runtime. Hosts the CopilotKit runtime and a small
-REST surface, called directly by the chat frontend with a Firebase bearer token.
+LangChain + LangGraph agent runtime. Hosts the CopilotKit runtime with the
+graph running **in this process**, called directly by the chat frontend with
+a Firebase bearer token. All durable state (transcript ledger and engine
+checkpoints) lives in D1 behind `apps/memory-worker`.
 
 ## Endpoints
 
-| Method | Path          | Auth            | Description                                                |
-| ------ | ------------- | --------------- | ---------------------------------------------------------- |
-| POST   | `/copilotkit` | Firebase bearer | CopilotKit v2 runtime (proxies to the LangGraph server).   |
-| POST   | `/chat`       | Firebase bearer | Streaming chat over Server-Sent Events (in-process graph). |
-| GET    | `/memory/*`   | Firebase bearer | Transcript history for the chat sidebar.                   |
-| GET    | `/health`     | none            | Liveness probe.                                            |
+| Method | Path          | Auth            | Description                                     |
+| ------ | ------------- | --------------- | ----------------------------------------------- |
+| POST   | `/copilotkit` | Firebase bearer | CopilotKit v2 runtime (in-process agents).      |
+| GET    | `/memory/*`   | Firebase bearer | Transcript history for the chat sidebar.        |
+| GET    | `/health`     | none            | Liveness probe.                                 |
 
 Authenticated endpoints require `Authorization: Bearer <Firebase ID token>`.
 When `ALLOWED_EMAIL_DOMAINS` is configured, only verified emails on those
@@ -18,45 +19,41 @@ domains are accepted.
 
 ## Processes
 
-`pnpm dev` runs two things via `concurrently`:
+`pnpm dev` runs the Hono server on `AGENT_PORT` (default `4000`) — that is
+the whole agent runtime; there is no separate graph server. `pnpm build`
+bundles it to `dist/server.js`; `pnpm start` runs that artifact with plain
+Node.
 
-- `dev:graph` — `langgraphjs dev` on `:2024`, serving graphs from `langgraph.json`.
-- `dev:api` — the Hono server on `AGENT_PORT` (default `4000`).
+Runs execute through an AG-UI bridge
+(`src/agents/workspace-agent/agui-bridge.ts`): the CopilotKit runtime builds
+a per-request agent closing over the verified user, the bridge streams
+`graph.streamEvents` and translates model/tool events into AG-UI events.
 
-`pnpm build` bundles the Hono runtime to `dist/server.js`; `pnpm start` runs that
-artifact with plain Node. The LangGraph service remains a separate deployment and
-must never be reachable from outside the trust boundary — identity arrives there
-as plain `x-agent-*` headers.
+### Short-term memory (checkpoints)
 
-### LangGraph server in Docker (Postgres checkpoints)
-
-`pnpm dev:server` replaces `dev:graph` with the self-hosted LangGraph server:
-`docker-compose.langgraph.yml` runs Postgres + Redis + the API image built by
-`Dockerfile.langgraph` (monorepo-aware pnpm build — the official
-`langgraphjs build` cannot resolve `workspace:*` dependencies). Checkpoints
-and threads then live in Postgres instead of the dev server's
-`.langgraph_api/` file cache, matching production behavior.
-
-Setup: `cp .env.docker.sample .env.docker`, fill `LANGSMITH_API_KEY` (free
-Lite license from smith.langchain.com) and the other values — service URLs
-must use `host.docker.internal` because the graph runs inside a container.
-The API serves on `:2024` like `dev:graph`, so run one mode at a time; stop
-with `pnpm dev:server:down`. Inspect checkpoints at `localhost:5433`
-(postgres/postgres).
+The graph compiles with `D1CheckpointSaver`
+(`src/services/d1-checkpoint-saver.ts`), which persists LangGraph checkpoints
+through the memory worker into D1 — conversations survive process restarts,
+checkpoint rows are scoped per user, and the worker prunes each thread to its
+latest 20 checkpoints. Requires `MEMORY_WORKER_URL`; without it the agent
+falls back to in-memory checkpoints (threads reset on restart) and logs a
+warning.
 
 ## Layout
 
 ```
 src/
   server.ts              Hono entry (CORS, bearer auth, routes, CopilotKit mount)
-  copilotkit.ts          CopilotRuntime + LangGraphAgent registry
+  copilotkit.ts          CopilotKit runtime fetch handler
   config/env.ts          Zod-validated environment
-  agents/workspace-agent/  graph.ts (createAgent), prompt.ts, index.ts
+  config/intelligence.ts CopilotRuntime + per-request agent factory
+  agents/workspace-agent/  graph.ts (createAgent), agui-bridge.ts, prompt.ts
   graphs/registry.ts     agent registry for the runtime
   tools/                 registered agent tools
   services/api-client.ts typed client for the existing product REST API
+  services/d1-checkpoint-saver.ts  LangGraph checkpointer over the memory worker
   models/                ChatOpenAI singleton
-  routes/ controllers/ services/ schemas/ middleware/ utils/
+  routes/ controllers/ services/ middleware/ utils/
 ```
 
 ## Calling the existing REST API from tools
@@ -79,9 +76,9 @@ model arguments.
 ## Environment
 
 Reads from `apps/agent/.env` (see `.env.example` in this directory):
-`OPENAI_*`, `AGENT_PORT`, `LANGGRAPH_DEPLOYMENT_URL`, `CORS_ORIGINS`,
-`ALLOWED_EMAIL_DOMAINS`, `FIREBASE_*` (required in production),
-`API_BASE_URL` + `API_SERVICE_TOKEN`
-(+ optional `API_TIMEOUT_MS`), and optionally `MEMORY_WORKER_URL` +
-`CF_ACCESS_CLIENT_ID` + `CF_ACCESS_CLIENT_SECRET` for durable transcript
-memory (no-ops when unset).
+`OPENAI_*`, `AGENT_PORT`, `CORS_ORIGINS`, `ALLOWED_EMAIL_DOMAINS`,
+`FIREBASE_*` (required in production), `API_BASE_URL` + `API_SERVICE_TOKEN`
+(+ optional `API_TIMEOUT_MS`), and `MEMORY_WORKER_URL` +
+`CF_ACCESS_CLIENT_ID` + `CF_ACCESS_CLIENT_SECRET` for durable memory and
+checkpoints (transcript features and restart-surviving threads need the
+worker; without it the agent degrades to stateless-per-restart chat).
