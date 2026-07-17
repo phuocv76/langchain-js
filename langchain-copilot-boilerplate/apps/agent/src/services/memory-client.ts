@@ -26,7 +26,7 @@ const isConfigured = (): boolean => Boolean(env.MEMORY_WORKER_URL);
  * Access boundary in front of a deployed worker; local `wrangler dev`
  * is reached directly, so the headers are attached only when configured.
  */
-const accessHeaders = (): Record<string, string> =>
+export const accessHeaders = (): Record<string, string> =>
   env.CF_ACCESS_CLIENT_ID && env.CF_ACCESS_CLIENT_SECRET
     ? {
         'CF-Access-Client-Id': env.CF_ACCESS_CLIENT_ID,
@@ -80,6 +80,20 @@ export const retrieveMemory = async (
 
 export const deleteMemoryThread = async (identity: MemoryIdentity): Promise<void> => {
   await requestMemoryService('/v1/threads', 'DELETE', identity);
+};
+
+/**
+ * Deletes the thread's engine checkpoints (short-term memory in D1), scoped
+ * to the owning user. Used when a thread is deleted so the conversation
+ * state is truly gone, not just hidden from the sidebar.
+ */
+export const deleteCheckpointThread = async (
+  identity: MemoryIdentity,
+): Promise<void> => {
+  await requestMemoryService('/v1/checkpoints/delete-thread', 'POST', {
+    userId: identity.userId,
+    threadId: identity.threadId,
+  });
 };
 
 export const renameMemoryThread = async (
