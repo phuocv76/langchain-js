@@ -1,12 +1,7 @@
-export interface Env {
-  readonly MEMORY_DB: D1Database;
-  /** Absent in the local-only `offline` env; semantic recall then degrades. */
-  readonly MEMORY_INDEX?: VectorizeIndex;
-  /** Absent in the local-only `offline` env; semantic recall then degrades. */
-  readonly AI?: Ai;
-  /** Set to 'false' only for local `wrangler dev`; deployed Workers keep Access required. */
-  readonly REQUIRE_CF_ACCESS?: string;
-}
+import { handleCheckpointRequest } from './checkpoints';
+import { type Env, isString, json } from './shared';
+
+export type { Env } from './shared';
 
 type Identity = {
   readonly userId: string;
@@ -22,9 +17,6 @@ type MemoryTurn = Identity & {
   readonly toolMetadata?: unknown;
 };
 
-const json = (value: unknown, status = 200): Response =>
-  Response.json(value, { status });
-
 const requireAccess = (request: Request, env: Env): Response | undefined => {
   // Cloudflare Access validates the service token before this Worker executes.
   // The assertion header proves the request crossed that Access boundary.
@@ -34,9 +26,6 @@ const requireAccess = (request: Request, env: Env): Response | undefined => {
     return json({ error: 'Cloudflare Access authentication is required' }, 401);
   }
 };
-
-const isString = (value: unknown): value is string =>
-  typeof value === 'string' && value.length > 0;
 
 const parseIdentity = (value: unknown): Identity | undefined => {
   if (!value || typeof value !== 'object') return undefined;
@@ -308,6 +297,8 @@ export default {
     const accessError = requireAccess(request, env);
     if (accessError) return accessError;
     const pathname = new URL(request.url).pathname;
+    const checkpointResponse = await handleCheckpointRequest(request, env, pathname);
+    if (checkpointResponse) return checkpointResponse;
     if (request.method === 'POST' && pathname === '/v1/turns')
       return appendTurn(request, env);
     if (request.method === 'POST' && pathname === '/v1/retrieve')
