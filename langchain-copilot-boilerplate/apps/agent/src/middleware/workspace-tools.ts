@@ -7,9 +7,20 @@ import {
   DurableMemoryStateSchema,
   type TrustedAgentStateContext,
 } from '@agent/middleware/durable-memory-state.js';
-import { isApiConfigured } from '@agent/services/api-client.js';
+import {
+  type ActingIdentity,
+  isApiConfigured,
+} from '@agent/services/api-client.js';
 import { executeWorkspaceTool } from '@agent/services/workspace-api.js';
 import { isWorkspaceTool, workspaceTools } from '@agent/tools/workspace.tools.js';
+
+/** Reads the verified Firebase ID token from LangGraph run configurable. */
+const readAccessToken = (runtime: unknown): string | undefined => {
+  const configurable = (runtime as { configurable?: Record<string, unknown> })
+    .configurable;
+  const token = configurable?.['x-agent-access-token'];
+  return typeof token === 'string' && token ? token : undefined;
+};
 
 /**
  * Executes the read-only workspace tools with the verified acting identity
@@ -26,13 +37,15 @@ export const workspaceToolsMiddleware = createMiddleware({
   wrapToolCall: async (request, handler) => {
     if (!isWorkspaceTool(request.toolCall.name)) return handler(request);
 
-    const identity = (
+    const agentContext = (
       request.state as { agentContext?: TrustedAgentStateContext }
     ).agentContext;
-    if (!identity) {
+    const accessToken = readAccessToken(request.runtime);
+    if (!agentContext || !accessToken) {
       throw new Error('Trusted agent context is unavailable');
     }
 
+    const identity: ActingIdentity = { ...agentContext, accessToken };
     const content = await executeWorkspaceTool(
       request.toolCall.name,
       request.toolCall.args,

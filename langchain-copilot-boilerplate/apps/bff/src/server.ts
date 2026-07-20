@@ -6,7 +6,6 @@ import { logger as honoLogger } from 'hono/logger';
 
 // Internal
 import {
-  assertUserVerificationConfigured,
   corsOrigins,
   env,
   errorHandler,
@@ -27,38 +26,38 @@ app.use(
     allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: [
       'Content-Type',
-      // Firebase ID token from the chat frontend.
       'Authorization',
-      // CopilotKit client request headers.
       'X-CopilotCloud-Public-Api-Key',
       'X-Request-Id',
+      'X-User-Id',
+      'X-User-Email',
+      'X-User-Roles',
     ],
   }),
 );
 
 app.onError(errorHandler);
 
-// The chat frontend calls this service directly with a Firebase bearer token.
-// Every agent endpoint requires a verified end user; health remains public.
-// A '/x/*' pattern matches both '/x' and its subpaths, so one registration
-// per route is enough — registering '/x' as well would run auth twice.
+// Identity: verify Firebase Bearer on both the exact path and subpaths.
+// Health stays public. CopilotKit's single-route client POSTs to /copilotkit.
+app.use('/copilotkit', requireAgentUser);
 app.use('/copilotkit/*', requireAgentUser);
+app.use('/memory', requireAgentUser);
 app.use('/memory/*', requireAgentUser);
 
 // REST endpoints.
 app.route('/health', healthRoute);
 app.route('/memory', memoryRoute);
 
-// CopilotKit runtime (agents run in-process via @repo/agent; D1 owns persistence).
+// CopilotKit runtime (in-process graph + D1 checkpoints).
 app.all('/copilotkit', (c) => handleCopilotKitRequest(c.req.raw));
 app.all('/copilotkit/*', (c) => handleCopilotKitRequest(c.req.raw));
-
-// This process serves browsers directly, so production must be able to
-// verify end-user tokens before it starts accepting requests.
-assertUserVerificationConfigured();
 
 serve({ fetch: app.fetch, port: env.AGENT_PORT }, (info) => {
   logger.info(`BFF ready at http://localhost:${info.port}`);
   logger.info(`  - CopilotKit runtime: POST /copilotkit`);
   logger.info(`  - Health:             GET  /health`);
+  if (env.MEMORY_WORKER_URL) {
+    logger.info(`  - Memory worker:      ${env.MEMORY_WORKER_URL}`);
+  }
 });

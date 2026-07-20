@@ -17,6 +17,13 @@ const copilotkitMiddleware = createCopilotkitMiddleware({
   exposeState: false,
 });
 
+/**
+ * Engine short-term memory: D1 via the memory worker when configured,
+ * otherwise an in-process MemorySaver (threads reset on restart).
+ */
+const createCheckpointer = () =>
+  env.MEMORY_WORKER_URL ? new D1CheckpointSaver() : new MemorySaver();
+
 /** Builds a ReAct-style conversational agent with CopilotKit streaming support. */
 const buildWorkspaceAgent = () => {
   const model = getChatModel();
@@ -26,6 +33,7 @@ const buildWorkspaceAgent = () => {
     tools,
     stateSchema: DurableMemoryStateSchema,
     systemPrompt: WORKSPACE_AGENT_SYSTEM_PROMPT,
+    checkpointer: createCheckpointer(),
     // Keep durable threads from sending an ever-growing prompt. Summarization
     // only runs after eight turns, then preserves the most recent four turns.
     middleware: [
@@ -45,27 +53,13 @@ const buildWorkspaceAgent = () => {
   });
 };
 
-/** Compiled workspace graph type shared by every compile variant. */
-export type WorkspaceGraph = ReturnType<typeof buildWorkspaceAgent>['graph'];
+const workspaceAgent = buildWorkspaceAgent();
 
 /**
- * Compiles the agent with the durable D1 checkpointer — the short-term
- * memory for the in-process CopilotKit runs. Conversations survive process
- * restarts because engine state lives in D1, next to the transcript ledger.
- * Without a configured memory worker the graph degrades to in-memory
- * checkpoints (threads reset on restart) instead of failing every run.
- * Compilation is deferred to first use so importing this module never
- * requires model credentials (tests exercise the pure helpers around it).
+ * Compiled graph with durable (or in-process) checkpointer. Consumed
+ * in-process by the CopilotKit BuiltInAgent bridge — not by langgraph_api.
  */
-export const compileWithDurableCheckpoints = (): WorkspaceGraph => {
-  const agent = buildWorkspaceAgent();
-  if (env.MEMORY_WORKER_URL) {
-    agent.checkpointer = new D1CheckpointSaver();
-  } else {
-    console.warn(
-      '[workspace-agent] MEMORY_WORKER_URL is not set; using in-memory checkpoints (threads will not survive restarts)',
-    );
-    agent.checkpointer = new MemorySaver();
-  }
-  return agent.graph;
-};
+export const graph = workspaceAgent.graph;
+
+/** Compiled workspace graph type shared by tests and tooling. */
+export type WorkspaceGraph = typeof graph;

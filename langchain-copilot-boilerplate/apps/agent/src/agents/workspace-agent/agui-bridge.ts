@@ -27,8 +27,8 @@ import {
 } from '@langchain/core/messages';
 
 // Internal
-import { compileWithDurableCheckpoints } from '@agent/agents/workspace-agent/graph.js';
-import type { AgentUserContext } from '@agent/middleware/agent-user-auth.js';
+import { graph as workspaceGraph } from '@agent/agents/workspace-agent/graph.js';
+import type { AgentRunIdentity } from '@agent/middleware/agent-user-auth.js';
 import { withCheckpointUser } from '@agent/services/checkpoint-user-context.js';
 
 /**
@@ -48,12 +48,8 @@ type RunFactoryContext = Parameters<
 const MODEL_NODE = 'model_request';
 const TOOLS_NODE = 'tools';
 
-/** The compiled graph is stateless per run; one instance serves all users. */
-let cachedGraph: ReturnType<typeof compileWithDurableCheckpoints> | undefined;
-const getGraph = (): ReturnType<typeof compileWithDurableCheckpoints> => {
-  cachedGraph ??= compileWithDurableCheckpoints();
-  return cachedGraph;
-};
+/** Shared compiled graph (D1CheckpointSaver / MemorySaver owns persistence). */
+const getGraph = () => workspaceGraph;
 
 /** Extracts plain text from a string-or-content-blocks message payload. */
 const textOf = (content: unknown): string => {
@@ -242,13 +238,13 @@ const toToolMessage = (output: unknown): ToolResultLike | undefined => {
  */
 export const streamWorkspaceRun = (
   context: RunFactoryContext,
-  user: AgentUserContext,
+  user: AgentRunIdentity,
 ): AsyncGenerator<BaseEvent> =>
   withCheckpointUser(user.userId, streamWorkspaceRunInner(context, user));
 
 const streamWorkspaceRunInner = async function* (
   context: RunFactoryContext,
-  user: AgentUserContext,
+  user: AgentRunIdentity,
 ): AsyncGenerator<BaseEvent> {
   const { input } = context;
   const graph = getGraph();
@@ -261,6 +257,8 @@ const streamWorkspaceRunInner = async function* (
     'x-agent-user-id': user.userId,
     'x-agent-user-email': user.email,
     'x-agent-roles': encodeURIComponent(JSON.stringify(user.roles)),
+    // Verified ID token for product-API Bearer auth (never logged).
+    'x-agent-access-token': user.accessToken,
   };
 
   const stream = graph.streamEvents(
@@ -352,12 +350,12 @@ const streamWorkspaceRunInner = async function* (
 };
 
 /**
- * In-process AG-UI agent for one verified user. Built per request by the
- * runtime's agents factory so the identity in scope is always the one the
- * Firebase middleware verified for this call.
+ * In-process AG-UI agent for one verified user. Used by the CopilotKit
+ * runtime so checkpoint/resume goes through D1CheckpointSaver (or
+ * MemorySaver when MEMORY_WORKER_URL is unset).
  */
 export const createWorkspaceBridgeAgent = (
-  user: AgentUserContext,
+  user: AgentRunIdentity,
 ): BuiltInAgent =>
   new BuiltInAgent({
     type: 'custom',

@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:bff": "turbo run dev --filter=@repo/bff",
+    "dev:agent": "turbo run dev --filter=@repo/agent",
     "dev:web": "turbo run dev --filter=@repo/web",
     "dev:realtime": "turbo run dev --filter=@repo/realtime-worker",
     "deploy:realtime": "pnpm --filter @repo/realtime-worker deploy",

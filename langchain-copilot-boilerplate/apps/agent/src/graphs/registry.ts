@@ -5,6 +5,8 @@ import { DEFAULT_AGENT_ID } from '@repo/shared';
 export interface AgentDefinition {
   /** Public id used by the frontend `agent` prop and runtime routing. */
   readonly id: string;
+  /** Graph id registered in `langgraph.json` (usually equal to `id`). */
+  readonly graphId: string;
   /** Short human description. */
   readonly description: string;
 }
@@ -13,13 +15,15 @@ export interface AgentDefinition {
  * Registry of agents served by this backend.
  *
  * To add an agent:
- *   1. Create `src/agents/<name>/graph.ts` exporting the compiled graph and
- *      an AG-UI bridge (see `workspace-agent/agui-bridge.ts`).
- *   2. Add an entry here and map it in `config/intelligence.ts`.
+ *   1. Create `src/agents/<name>/graph.ts` exporting `graph`.
+ *   2. Wire a BuiltInAgent factory in `config/intelligence.ts`.
+ *   3. Add an entry here — the CopilotKit runtime picks it up automatically.
+ *   4. Optionally register it in `langgraph.json` for LangGraph Studio.
  */
 export const AGENT_REGISTRY: readonly AgentDefinition[] = [
   {
     id: DEFAULT_AGENT_ID,
+    graphId: DEFAULT_AGENT_ID,
     description:
       'Workspace assistant: employee/project/time-off lookups over the product API, with bounded conversation memory.',
   },

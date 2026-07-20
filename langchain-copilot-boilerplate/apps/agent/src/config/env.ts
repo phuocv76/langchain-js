@@ -31,14 +31,16 @@ export const envSchema = z
       .enum(['development', 'test', 'production'])
       .default('development'),
     AGENT_PORT: z.coerce.number().int().positive().default(4000),
+    /**
+     * Optional LangGraph Studio / `langgraphjs` URL. Chat no longer proxies
+     * through the Agent Server — graphs run in-process with D1 checkpoints.
+     */
+    LANGGRAPH_DEPLOYMENT_URL: z.string().url().optional(),
     CORS_ORIGINS: z
       .string()
       .refine(isValidOriginList, 'Must be a comma-separated list of valid URLs')
       .default('http://localhost:3000'),
     OPENAI_API_KEY: optionalSecret,
-    FIREBASE_PROJECT_ID: optionalSecret,
-    FIREBASE_CLIENT_EMAIL: optionalSecret,
-    FIREBASE_PRIVATE_KEY: optionalSecret,
     OPENAI_MODEL: z.string().min(1).default('gpt-5.4-mini'),
     /** Lower reasoning effort improves time-to-first-token for chat workloads. */
     OPENAI_REASONING_EFFORT: z.enum(['low', 'medium', 'high']).default('low'),
@@ -53,10 +55,14 @@ export const envSchema = z
      * (e.g. "asnet.com.vn"). Empty means every verified account is allowed.
      */
     ALLOWED_EMAIL_DOMAINS: z.string().optional(),
+    /**
+     * Firebase project that issued the web client's ID tokens. Required for
+     * `/copilotkit` and `/memory` — the BFF verifies Bearer tokens with Google
+     * JWKS (no Admin private key). Must match VITE_FIREBASE_PROJECT_ID.
+     */
+    FIREBASE_PROJECT_ID: z.string().min(1).optional(),
     /** Base URL of the existing product REST API that agent tools call. */
     API_BASE_URL: z.string().url().optional(),
-    /** Service credential the agent presents to the product REST API. */
-    API_SERVICE_TOKEN: optionalSecret,
     /** Bound external API waits so a slow endpoint cannot stall a chat run. */
     API_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
     /** Memory worker endpoint; a bare URL is enough for local `wrangler dev`. */
@@ -71,6 +77,10 @@ export const envSchema = z
     REALTIME_WORKER_URL: z.string().url().optional(),
     /** Shared secret for POST /publish on the realtime worker. */
     REALTIME_PUBLISH_SECRET: optionalSecret,
+    /** Optional CopilotKit license token for gated runtime features. */
+    COPILOTKIT_LICENSE_TOKEN: optionalSecret,
+    /** Optional LangSmith API key (tracing / Studio). */
+    LANGSMITH_API_KEY: optionalSecret,
   })
   .superRefine((value, context) => {
     const accessValues = [value.CF_ACCESS_CLIENT_ID, value.CF_ACCESS_CLIENT_SECRET];
@@ -91,17 +101,6 @@ export const envSchema = z
         path: ['MEMORY_WORKER_URL'],
         message:
           'CF_ACCESS_CLIENT_ID/CF_ACCESS_CLIENT_SECRET require MEMORY_WORKER_URL',
-      });
-    }
-
-    const apiValues = [value.API_BASE_URL, value.API_SERVICE_TOKEN];
-    const apiConfiguredCount = apiValues.filter(Boolean).length;
-
-    if (apiConfiguredCount > 0 && apiConfiguredCount < apiValues.length) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['API_BASE_URL'],
-        message: 'API_BASE_URL and API_SERVICE_TOKEN must be configured together',
       });
     }
 
@@ -132,29 +131,6 @@ if (!parsed.success) {
 
 /** Validated, typed environment. */
 export const env: Env = parsed.data;
-
-/**
- * Asserts that end-user token verification is configured in production.
- *
- * This process serves browsers, so only the BFF bootstrap calls this.
- * Library imports of the same env module (graphs, tools) sit behind
- * the trust boundary (verified `x-agent-*` headers) and must not require
- * Firebase credentials on their own.
- */
-export const assertUserVerificationConfigured = (candidate: Env = env): void => {
-  if (
-    candidate.NODE_ENV === 'production' &&
-    !(
-      candidate.FIREBASE_PROJECT_ID &&
-      candidate.FIREBASE_CLIENT_EMAIL &&
-      candidate.FIREBASE_PRIVATE_KEY
-    )
-  ) {
-    throw new Error(
-      'FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are required in production',
-    );
-  }
-};
 
 /** Parsed list of allowed CORS origins. */
 export const corsOrigins: string[] = env.CORS_ORIGINS.split(',')

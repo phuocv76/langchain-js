@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
 
 process.env.API_BASE_URL = 'https://api.test.local';
-process.env.API_SERVICE_TOKEN = 'test-service-token';
 
 const { executeWorkspaceTool } = await import('../workspace-api.js');
 
@@ -10,6 +9,7 @@ const identity = {
   requestId: 'req-1',
   userId: 'uid-1',
   email: 'bao.nguyen@asnet.com.vn',
+  accessToken: 'firebase-id-token',
 };
 
 const originalFetch = globalThis.fetch;
@@ -45,16 +45,16 @@ describe('workspace API tool execution', () => {
     assert.equal(result, JSON.stringify({ timeOffs: [] }));
   });
 
-  it('sends the service credential and acting-user headers', async () => {
+  it('sends the signed-in user Firebase Bearer token', async () => {
     const calls = stubFetch({ ok: true });
 
     await executeWorkspaceTool('get_workspace_stats', {}, identity);
 
     const headers = calls[0]?.headers ?? {};
-    assert.equal(headers.Authorization, 'Bearer test-service-token');
-    assert.equal(headers['X-Acting-User-Id'], 'uid-1');
-    assert.equal(headers['X-Acting-User-Email'], 'bao.nguyen@asnet.com.vn');
+    assert.equal(headers.Authorization, 'Bearer firebase-id-token');
     assert.equal(headers['X-Request-Id'], 'req-1');
+    assert.equal(headers['X-Acting-User-Id'], undefined);
+    assert.equal(headers['X-Acting-User-Email'], undefined);
   });
 
   it('applies search defaults and forwards the query', async () => {

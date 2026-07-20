@@ -1,36 +1,32 @@
 # @repo/bff
 
-Hono BFF that composes the CopilotKit runtime endpoint over in-process
-LangGraph agents from `@repo/agent`. The chat frontend calls this service
-directly with a Firebase bearer token. All durable state (transcript ledger
-and engine checkpoints) lives in D1 behind `apps/memory-worker`.
+Hono BFF that mounts the CopilotKit runtime (`createCopilotHonoHandler`) and
+runs LangGraph agents **in-process** (BuiltInAgent + D1 checkpoints when
+`MEMORY_WORKER_URL` is set).
 
 ## Endpoints
 
-| Method | Path          | Auth            | Description                                     |
-| ------ | ------------- | --------------- | ----------------------------------------------- |
-| POST   | `/copilotkit` | Firebase bearer | CopilotKit v2 runtime (in-process agents).      |
-| GET    | `/memory/*`   | Firebase bearer | Transcript history for the chat sidebar.        |
-| GET    | `/health`     | none            | Liveness probe.                                 |
+| Method | Path          | Auth                         | Description                                      |
+| ------ | ------------- | ---------------------------- | ------------------------------------------------ |
+| *      | `/copilotkit` | Firebase ID token (Bearer)   | CopilotKit v2 runtime (in-process graph).        |
+| GET    | `/memory/*`   | Firebase ID token (Bearer)   | Transcript history for the chat sidebar.         |
+| GET    | `/health`     | none                         | Liveness probe.                                  |
 
-Authenticated endpoints require `Authorization: Bearer <Firebase ID token>`.
-When `ALLOWED_EMAIL_DOMAINS` is configured, only verified emails on those
-domains are accepted.
+Set `FIREBASE_PROJECT_ID` to the same project as `VITE_FIREBASE_PROJECT_ID`
+in the web app. The BFF verifies ID tokens with Google JWKS (no Admin key).
 
 ## Processes
 
-`pnpm dev` runs the Hono server on `AGENT_PORT` (default `4000`). `pnpm build`
-bundles it to `dist/server.js`; `pnpm start` runs that artifact with plain
-Node.
+Chat needs the BFF (and optionally the memory worker for D1):
 
-Agents execute through `@repo/agent`'s AG-UI bridge with `D1CheckpointSaver`
-for short-term memory — there is no separate LangGraph deployment.
+1. This BFF: `pnpm --filter @repo/bff dev` (port `AGENT_PORT`, default `4000`)
+2. Memory worker (recommended): `pnpm --filter @repo/memory-worker dev`
+
+`pnpm dev` at the repo root starts the BFF, web app, and workers via Turborepo.
+LangGraph Studio is optional: `pnpm --filter @repo/agent studio`.
 
 ## Environment
 
-Reads from `apps/bff/.env` (see `.env.example` in this directory):
-`OPENAI_*`, `AGENT_PORT`, `CORS_ORIGINS`, `ALLOWED_EMAIL_DOMAINS`,
-`FIREBASE_*` (required in production), `API_BASE_URL` + `API_SERVICE_TOKEN`
-(+ optional `API_TIMEOUT_MS`), and `MEMORY_WORKER_URL` +
-`CF_ACCESS_CLIENT_ID` + `CF_ACCESS_CLIENT_SECRET` for durable memory and
-checkpoints.
+Reads from `apps/bff/.env` (see `.env.example`):
+`FIREBASE_PROJECT_ID`, `OPENAI_*`, `AGENT_PORT`, `CORS_ORIGINS`,
+`API_BASE_URL`, and optional `MEMORY_WORKER_URL` / realtime vars.

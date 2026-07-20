@@ -9,8 +9,14 @@ import { env } from '@agent/config/env.js';
 export interface ActingIdentity {
   readonly requestId: string;
   readonly userId: string;
-  /** Verified email — the product API keys users by it. */
+  /** Verified email — used when a tool omits an explicit employee email. */
   readonly email: string;
+  /**
+   * Verified Firebase ID token. Presented to the product API as
+   * `Authorization: Bearer` so the API can identify the signed-in user and
+   * enforce permissions. Read from run configurable — never from graph state.
+   */
+  readonly accessToken: string;
 }
 
 export class ApiClientError extends Error {
@@ -32,17 +38,15 @@ export interface ApiRequestOptions {
   readonly query?: Readonly<Record<string, string>>;
 }
 
-/** True when the product API integration is configured for this deployment. */
-export const isApiConfigured = (): boolean =>
-  Boolean(env.API_BASE_URL && env.API_SERVICE_TOKEN);
+/** True when the product API base URL is configured for this deployment. */
+export const isApiConfigured = (): boolean => Boolean(env.API_BASE_URL);
 
 /**
  * Single entry point for calling the existing product REST API.
  *
- * Authenticates with the service credential and forwards the acting user as
- * headers, so the API can enforce per-user authorization while credentials
- * never enter graph state or transport. Requests are bounded by
- * `API_TIMEOUT_MS` so a slow endpoint cannot stall a chat run.
+ * Authenticates with the signed-in user's Firebase ID token as
+ * `Authorization: Bearer`, matching the API's normal user auth. Requests are
+ * bounded by `API_TIMEOUT_MS` so a slow endpoint cannot stall a chat run.
  *
  * @throws ApiClientError when unconfigured, timed out, or on a non-2xx reply.
  */
@@ -52,7 +56,14 @@ export const apiRequest = async <T>(
 ): Promise<T> => {
   if (!isApiConfigured()) {
     throw new ApiClientError(
-      'Product API is not configured. Set API_BASE_URL and API_SERVICE_TOKEN.',
+      'Product API is not configured. Set API_BASE_URL.',
+    );
+  }
+
+  if (!identity.accessToken) {
+    throw new ApiClientError(
+      'Missing verified access token for product API request',
+      401,
     );
   }
 
@@ -66,9 +77,7 @@ export const apiRequest = async <T>(
     response = await fetch(url, {
       method,
       headers: {
-        Authorization: `Bearer ${env.API_SERVICE_TOKEN!}`,
-        'X-Acting-User-Id': identity.userId,
-        'X-Acting-User-Email': identity.email,
+        Authorization: `Bearer ${identity.accessToken}`,
         'X-Request-Id': identity.requestId,
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },

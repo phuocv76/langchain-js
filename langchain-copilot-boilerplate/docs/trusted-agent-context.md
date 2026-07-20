@@ -2,18 +2,17 @@
 
 The chat frontend calls the agent runtime directly with the signed-in user's
 Firebase ID token (`Authorization: Bearer`). The agent verifies the token with
-revocation checking and, when `ALLOWED_EMAIL_DOMAINS` is configured, only
-accepts verified emails on those domains. It then deletes the credential from
-the request and replaces it with sanitized identity headers. `roles` come
-from an optional custom claim (defaulting to none).
+Google JWKS and, when `ALLOWED_EMAIL_DOMAINS` is configured, only accepts
+verified emails on those domains. It then replaces the inbound credential with
+sanitized identity headers. `roles` come from an optional custom claim
+(defaulting to none).
 
-Only these non-secret claims travel further: `x-agent-request-id`,
-`x-agent-user-id`, `x-agent-user-email`, and `x-agent-roles`. The graph runs
-in the same process — the AG-UI bridge copies the verified claims into each
-run's `config.configurable` under those keys, and the durable memory
-middleware converts them to graph state for the active run. Do not add
-credentials, raw ID tokens, or session material to graph state, prompts, tool
-arguments, logs, or responses.
+Non-secret claims travel further as `x-agent-request-id`, `x-agent-user-id`,
+`x-agent-user-email`, and `x-agent-roles`. The verified ID token is also
+forwarded as `x-agent-access-token` so product-API tools can authenticate as
+the signed-in user — it must never enter graph state, prompts, tool results,
+durable memory, or logs. The durable memory middleware converts the non-secret
+claims to graph state for the active run.
 
 ## Execution flow
 
@@ -21,8 +20,8 @@ arguments, logs, or responses.
    `/memory` request; CORS restricts browser origins to
    `CORS_ORIGINS`.
 2. Agent middleware verifies the token, enforces the allowed email domains
-   (verified emails only), deletes the `authorization` header, and emits
-   sanitized identity headers.
+   (verified emails only), emits sanitized identity headers, and forwards the
+   verified ID token as `x-agent-access-token` for product-API Bearer auth.
 3. The graph loads same-user durable context from the configured
    memory service (if any), then persists the incoming user message before it
    runs the model/tool ReAct loop.
@@ -36,22 +35,21 @@ domains return 403; missing Firebase configuration returns 503.
 
 ## Calling the existing product REST API
 
-Tools never call the product API with user credentials. The api-client
-(`apps/agent/src/services/api-client.ts`) authenticates with the
-`API_SERVICE_TOKEN` service credential and forwards the acting user as
-`X-Acting-User-Id`, `X-Acting-User-Email`, and `X-Request-Id` headers. The
-product API must trust this agent service and enforce per-user authorization
-from those headers. Identity always comes from the verified trusted context —
-tools must ignore identity fields in model-generated arguments.
+Tools call the product API with the signed-in user's Firebase ID token as
+`Authorization: Bearer` — the same credential the web app uses. The BFF
+verifies the token, then forwards it to the LangGraph run as
+`x-agent-access-token` (via CopilotKit `forwardHeaders`). The api-client
+(`apps/agent/src/services/api-client.ts`) presents that token to the API and
+adds `X-Request-Id`. Identity for path defaults (e.g. "my profile") still
+comes from the verified trusted context (`x-agent-user-email`) — tools must
+ignore identity fields in model-generated arguments.
 
-On the product API (space-api) side, `agentAuthMiddleware` implements the
-matching contract: a request carrying `X-Acting-User-Email` must present the
-`AGENT_SERVICE_TOKEN` secret as `Authorization: Bearer` (compared in constant
-time). The middleware loads the existing user by email — it never creates
-accounts — requires an allowed domain and active status, and the API's
-regular permission checks then apply to that acting user. Configure the
-secret with `wrangler secret put AGENT_SERVICE_TOKEN --env dev` and set the
-same value as `API_SERVICE_TOKEN` in `apps/bff/.env`.
+Do not put the access token into graph state, prompts, tool results, durable
+memory, or logs. It lives only in run configurable for the duration of the
+request.
+
+Set `API_BASE_URL` in `apps/bff/.env` (and `apps/agent/.env`) to the product
+API origin (e.g. `http://localhost:8787/`).
 
 ## Durable memory service
 

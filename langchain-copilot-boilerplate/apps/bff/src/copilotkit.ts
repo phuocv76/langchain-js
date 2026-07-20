@@ -1,33 +1,40 @@
 // Libs for third party
-import { createCopilotRuntimeHandler } from '@copilotkit/runtime/v2';
+import { createCopilotHonoHandler } from '@copilotkit/runtime/v2';
 
 // Internal
-import { createCopilotRuntime } from '@repo/agent';
+import { corsOrigins, createCopilotRuntime } from '@repo/agent';
 
 const BASE_PATH = '/copilotkit';
 
 /**
- * Builds a CopilotKit v2 fetch handler wired to every agent in the registry.
- * Agents run in-process via `@repo/agent` (D1CheckpointSaver for persistence);
- * this BFF only composes the HTTP endpoint.
+ * Builds the CopilotKit Hono handlers that run the workspace graph
+ * in-process (BuiltInAgent + D1CheckpointSaver).
  *
- * @returns A `(Request) => Promise<Response>` handler mounted by Hono.
+ * The React client POSTs to the base path (single-route envelope). Other
+ * clients may hit multi-route paths (`/agent/:id/run`, `/info`, …). Dispatch
+ * on method + pathname so both work.
  */
 const createCopilotKitHandler = (): ((
   request: Request,
 ) => Promise<Response>) => {
   const runtime = createCopilotRuntime();
+  const cors = {
+    origin: corsOrigins,
+    credentials: true,
+  } as const;
 
-  const multiRouteHandler = createCopilotRuntimeHandler({
+  const multiRouteApp = createCopilotHonoHandler({
     runtime,
     basePath: BASE_PATH,
     mode: 'multi-route',
+    cors,
   });
 
-  const singleRouteHandler = createCopilotRuntimeHandler({
+  const singleRouteApp = createCopilotHonoHandler({
     runtime,
     basePath: BASE_PATH,
     mode: 'single-route',
+    cors,
   });
 
   const isBaseRuntimePath = (pathname: string): boolean =>
@@ -37,10 +44,10 @@ const createCopilotKitHandler = (): ((
     const pathname = new URL(request.url, 'http://localhost').pathname;
 
     if (isBaseRuntimePath(pathname) && request.method === 'POST') {
-      return singleRouteHandler(request);
+      return Promise.resolve(singleRouteApp.fetch(request));
     }
 
-    return multiRouteHandler(request);
+    return Promise.resolve(multiRouteApp.fetch(request));
   };
 };
 

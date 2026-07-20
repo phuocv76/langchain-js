@@ -1,0 +1,8 @@
+{
+  "node_version": "20",
+  "dependencies": ["."],
+  "graphs": {
+    "workspaceAgent": "./src/agents/workspace-agent/graph.ts:graph"
+  },
+  "env": ".env"
+}
