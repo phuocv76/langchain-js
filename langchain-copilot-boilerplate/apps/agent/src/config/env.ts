@@ -64,6 +64,13 @@ export const envSchema = z
     /** Cloudflare Access service token pair, required only for deployed workers. */
     CF_ACCESS_CLIENT_ID: optionalSecret,
     CF_ACCESS_CLIENT_SECRET: optionalSecret,
+    /**
+     * Realtime worker base URL (no trailing path). Leave unset to skip
+     * cross-session push (NoopRealtimePublisher).
+     */
+    REALTIME_WORKER_URL: z.string().url().optional(),
+    /** Shared secret for POST /publish on the realtime worker. */
+    REALTIME_PUBLISH_SECRET: optionalSecret,
   })
   .superRefine((value, context) => {
     const accessValues = [value.CF_ACCESS_CLIENT_ID, value.CF_ACCESS_CLIENT_SECRET];
@@ -98,6 +105,16 @@ export const envSchema = z
       });
     }
 
+    const realtimeValues = [value.REALTIME_WORKER_URL, value.REALTIME_PUBLISH_SECRET];
+    const realtimeConfiguredCount = realtimeValues.filter(Boolean).length;
+    if (realtimeConfiguredCount === 1) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['REALTIME_WORKER_URL'],
+        message:
+          'REALTIME_WORKER_URL and REALTIME_PUBLISH_SECRET must be configured together',
+      });
+    }
   });
 
 /** Type of the validated environment. */
@@ -119,10 +136,10 @@ export const env: Env = parsed.data;
 /**
  * Asserts that end-user token verification is configured in production.
  *
- * Only the Hono runtime serves browsers, so only its bootstrap calls this.
- * The LangGraph server process imports the same env module but sits behind
+ * This process serves browsers, so only the BFF bootstrap calls this.
+ * Library imports of the same env module (graphs, tools) sit behind
  * the trust boundary (verified `x-agent-*` headers) and must not require
- * Firebase credentials — its container runs with NODE_ENV=production.
+ * Firebase credentials on their own.
  */
 export const assertUserVerificationConfigured = (candidate: Env = env): void => {
   if (

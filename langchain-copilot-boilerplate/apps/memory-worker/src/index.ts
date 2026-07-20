@@ -82,6 +82,17 @@ const appendTurn = async (request: Request, env: Env): Promise<Response> => {
     return json({ error: 'Invalid memory turn payload' }, 400);
   }
 
+  // Detect first turn for this thread before insert so the agent can emit
+  // THREAD_CREATED vs THREAD_UPDATED accurately.
+  const existing = await env.MEMORY_DB.prepare(
+    `SELECT 1 AS present FROM memory_turns
+     WHERE user_id = ? AND thread_id = ?
+     LIMIT 1`,
+  )
+    .bind(identity.userId, identity.threadId)
+    .first<{ present: number }>();
+  const isNewThread = !existing;
+
   const turnId = crypto.randomUUID();
   await env.MEMORY_DB.prepare(
     `INSERT INTO memory_turns
@@ -131,7 +142,7 @@ const appendTurn = async (request: Request, env: Env): Promise<Response> => {
     }
   }
 
-  return json({ id: turnId }, 201);
+  return json({ id: turnId, isNewThread }, 201);
 };
 
 const retrieve = async (request: Request, env: Env): Promise<Response> => {

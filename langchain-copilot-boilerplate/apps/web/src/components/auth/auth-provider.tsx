@@ -1,5 +1,3 @@
-'use client';
-
 // Libs for third party
 import {
   onIdTokenChanged,
@@ -41,9 +39,8 @@ export const AuthProvider = ({
 }): React.JSX.Element => {
   const [user, setUser] = useState<User | null>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
-  // NEXT_PUBLIC_* config is inlined at build time, so this initial value is
-  // identical on server and client; without Firebase there is no session to
-  // wait for.
+  // VITE_* config is inlined at build time; without Firebase there is no
+  // session to wait for.
   const [isLoading, setIsLoading] = useState(() => isFirebaseConfigured());
 
   useEffect(() => {
@@ -69,7 +66,7 @@ export const AuthProvider = ({
   const signInWithGoogle = useCallback(async (): Promise<void> => {
     if (!isFirebaseConfigured()) {
       throw new Error(
-        'Firebase is not configured. Set NEXT_PUBLIC_FIREBASE_* in apps/web/.env.',
+        'Firebase is not configured. Set VITE_FIREBASE_* in apps/web/.env.',
       );
     }
 

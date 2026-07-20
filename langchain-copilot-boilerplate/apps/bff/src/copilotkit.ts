@@ -2,13 +2,14 @@
 import { createCopilotRuntimeHandler } from '@copilotkit/runtime/v2';
 
 // Internal
-import { createCopilotRuntime } from '@agent/config/intelligence.js';
+import { createCopilotRuntime } from '@repo/agent';
 
 const BASE_PATH = '/copilotkit';
 
 /**
  * Builds a CopilotKit v2 fetch handler wired to every agent in the registry.
- * Agents run in this process; there is no separate agent server behind it.
+ * Agents run in-process via `@repo/agent` (D1CheckpointSaver for persistence);
+ * this BFF only composes the HTTP endpoint.
  *
  * @returns A `(Request) => Promise<Response>` handler mounted by Hono.
  */
@@ -43,5 +44,5 @@ const createCopilotKitHandler = (): ((
   };
 };
 
-/** Shared CopilotKit handler for the local Hono server. */
+/** Shared CopilotKit handler for the BFF Hono server. */
 export const handleCopilotKitRequest = createCopilotKitHandler();

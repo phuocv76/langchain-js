@@ -1,48 +1,55 @@
 # LangChain + LangGraph Agent Runtime Boilerplate
 
-A **Turborepo** boilerplate for a full-window AI chatbot: a **Next.js**
-frontend and a standalone agent service built with **LangChain JS**,
-**LangGraph**, and the **CopilotKit runtime** on **Hono**.
+A **Turborepo** boilerplate for a full-window AI chatbot: a **Vite + React**
+frontend and a **BFF** built with **Hono** + the **CopilotKit runtime**,
+composing in-process **LangChain JS** / **LangGraph** agents.
 
 Business data lives in your existing REST API (separate repo), which agent
 tools call through a typed client.
 
-- `apps/web` — Next.js product frontend: Google sign-in (Firebase) and a
-  full-window CopilotKit chat that calls the agent directly from the browser
+- `apps/web` — Vite + React product frontend: Google sign-in (Firebase) and a
+  full-window CopilotKit chat that calls the BFF directly from the browser
   (no proxy layer).
-- `apps/agent` — Hono service hosting the CopilotKit runtime
-  (`POST /copilotkit`) with the LangGraph agent running **in-process**,
-  transcript history (`GET /memory/*`), and `GET /health`.
+- `apps/bff` — Hono service composing the CopilotKit runtime
+  (`POST /copilotkit`), transcript history (`GET /memory/*`), and
+  `GET /health`.
+- `apps/agent` — LangGraph agents, tools, and `D1CheckpointSaver` (library
+  used in-process by the BFF; not a separate HTTP server).
 - `apps/memory-worker` — Cloudflare Worker owning all durable state in D1:
   the transcript ledger, semantic recall, and the engine's checkpoints
   (short-term memory).
+- `apps/realtime-worker` — Cloudflare Worker + Durable Objects for
+  cross-session thread/message sync (`GET /ws`, `POST /publish`).
 - `packages/*` — shared config, types, constants, and prompt builders.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  UI["apps/web: Next.js<br/>CopilotChat full-window"]
-  subgraph agent [apps/agent: Hono, in-process LangGraph]
+  UI["apps/web: Vite + React<br/>CopilotChat full-window"]
+  subgraph bff [apps/bff: Hono + CopilotKit]
     Auth["Bearer auth (Firebase ID token)"]
     Runtime["CopilotKit Runtime POST /copilotkit"]
+  end
+  subgraph agent [apps/agent: in-process library]
     Bridge["AG-UI bridge (BuiltInAgent)"]
     Graph["workspaceAgent (createAgent)"]
     Tools["Tools -> api-client"]
+    D1Saver["D1CheckpointSaver"]
   end
   MW["apps/memory-worker (D1):<br/>transcript + checkpoints"]
   API["Existing REST API (separate repo)"]
   UI -->|Authorization: Bearer + CORS| Auth --> Runtime --> Bridge --> Graph
   Graph --> Tools -->|service token + acting-user headers| API
-  Graph <-->|checkpoints + transcript| MW
+  Graph <-->|checkpoints via D1Saver + transcript| MW
 ```
 
 The frontend sends the signed-in user's **Firebase ID token** as
-`Authorization: Bearer`. The agent verifies it (with revocation checking) and,
+`Authorization: Bearer`. The BFF verifies it (with revocation checking) and,
 when `ALLOWED_EMAIL_DOMAINS` is set, only accepts verified emails on those
 domains (e.g. company accounts). The verified identity is injected into each
-graph run's config — there is no separate agent server, so the raw credential
-never leaves this process. Tools call the existing REST API with a
+graph run's config — agents run in the same process, so the raw credential
+never leaves the BFF. Tools call the existing REST API with a
 **service credential** plus acting-user headers — identity always comes from
 the verified context, never from model arguments.
 
@@ -51,8 +58,9 @@ the verified context, never from model arguments.
 | Area     | Choice                                                                    |
 | -------- | ------------------------------------------------------------------------- |
 | Monorepo | Turborepo + pnpm workspaces + TypeScript (strict)                         |
-| Frontend | Next.js (App Router), React 19, Tailwind CSS 4, CopilotKit v2 CopilotChat |
-| Agent    | Node, LangChain, LangGraph, Hono, Zod, CopilotKit runtime                 |
+| Frontend | Vite, React 19, Tailwind CSS 4, CopilotKit v2 CopilotChat                 |
+| BFF      | Node, Hono, CopilotKit runtime                                            |
+| Agent    | LangChain, LangGraph, Zod, D1CheckpointSaver                              |
 | Identity | Firebase Auth (Google sign-in on web; token verified via firebase-admin)  |
 | Tooling  | Shared ESLint (flat) + tsconfig via `@repo/config`; Prettier at repo root |
 
@@ -65,25 +73,31 @@ Requirements: Node >= 20 and pnpm (`corepack enable`).
 pnpm install
 
 # 2. Configure environment
-cp apps/agent/.env.example apps/agent/.env
+cp apps/bff/.env.example apps/bff/.env
 # set OPENAI_API_KEY; set FIREBASE_* to enable authenticated endpoints;
 # set ALLOWED_EMAIL_DOMAINS to restrict sign-in to your company accounts;
 # set API_BASE_URL + API_SERVICE_TOKEN so tools can call your REST API
 cp apps/web/.env.example apps/web/.env
-# set NEXT_PUBLIC_FIREBASE_* (same Firebase project as the agent)
+# set VITE_FIREBASE_* (same Firebase project as the BFF)
 
-# 3. Run everything (web + agent)
+# 3. Run everything (web + bff)
 pnpm dev
 
 # Optional but recommended: durable memory + checkpoints in local D1
 pnpm --filter @repo/memory-worker dev
+
+# Optional: cross-tab / cross-device thread sync
+pnpm --filter @repo/realtime-worker dev
 ```
 
 - Web app: http://localhost:3000
-- Agent API: http://localhost:4000 (`/health`, `/copilotkit`, `/memory`)
+- BFF API: http://localhost:4000 (`/health`, `/copilotkit`, `/memory`)
 - Memory worker (optional): http://localhost:8788 — set `MEMORY_WORKER_URL`
-  in `apps/agent/.env`. Without it the agent still chats, but threads reset
+  in `apps/bff/.env`. Without it the agent still chats, but threads reset
   when the process restarts (in-memory checkpoints, no transcript history).
+- Realtime worker (optional): http://localhost:8789 — set
+  `REALTIME_WORKER_URL` + `REALTIME_PUBLISH_SECRET` in `apps/bff/.env` and
+  `VITE_REALTIME_WS_URL=ws://localhost:8789/ws` in `apps/web/.env`.
 
 Note: `/copilotkit` and `/memory` require a signed-in Firebase user.
 Set `ALLOWED_EMAIL_DOMAINS` to restrict access to your company's accounts.
@@ -92,11 +106,11 @@ Without Firebase env vars the endpoints return 503.
 ### How the frontend connects
 
 `apps/web` signs the user in with the Firebase client SDK and mounts
-CopilotKit pointed directly at the agent:
+CopilotKit pointed directly at the BFF:
 
 ```tsx
 <CopilotKit
-  runtimeUrl="https://your-agent-host/copilotkit"
+  runtimeUrl="https://your-bff-host/copilotkit"
   agent="workspaceAgent"
   headers={{ Authorization: `Bearer ${firebaseIdToken}` }}
 >
@@ -104,7 +118,7 @@ CopilotKit pointed directly at the agent:
 </CopilotKit>
 ```
 
-The agent's `CORS_ORIGINS` must include the frontend origin (the default
+The BFF's `CORS_ORIGINS` must include the frontend origin (the default
 `.env.example` allows `http://localhost:3000`). Firebase ID tokens expire
 after about an hour — `apps/web` subscribes to `onIdTokenChanged` and rotates
 the header via `copilotkit.setHeaders()`; see
@@ -113,22 +127,37 @@ the header via `copilotkit.setHeaders()`; see
 ### Useful scripts
 
 ```bash
-pnpm dev            # run web + agent
-pnpm dev:agent      # agent only
+pnpm dev            # run web + bff
+pnpm dev:bff        # bff only
 pnpm dev:web        # web only
+pnpm dev:realtime   # realtime worker (Durable Objects) on :8789
 pnpm typecheck      # type-check every package
 pnpm lint           # lint every package
 pnpm test           # run workspace regression tests
 pnpm format         # format with Prettier
 ```
 
+### Optional: realtime multi-tab sync
+
+1. Copy `apps/realtime-worker/.dev.vars.sample` → `.dev.vars` and set
+   `FIREBASE_PROJECT_ID` + `REALTIME_PUBLISH_SECRET`.
+2. Set matching `REALTIME_WORKER_URL` + `REALTIME_PUBLISH_SECRET` in
+   `apps/bff/.env`.
+3. Set `VITE_REALTIME_WS_URL=ws://localhost:8789/ws` in `apps/web/.env`.
+4. Run `pnpm dev:realtime` alongside `pnpm dev`.
+
+The agent publishes events after durable memory writes; browsers connect with
+the Firebase ID token and stay in sync across tabs/devices.
+
 ## Repository layout
 
 ```
 apps/
-  web/           Next.js frontend (Firebase sign-in + full-window CopilotChat)
-  agent/         in-process LangGraph agent + Hono API + CopilotKit runtime
-  memory-worker/ Cloudflare Worker: D1 transcript ledger + engine checkpoints
+  web/              Vite + React frontend (Firebase sign-in + full-window CopilotChat)
+  bff/              Hono BFF: CopilotKit runtime + REST (/memory, /health)
+  agent/            in-process LangGraph agents + D1CheckpointSaver (library)
+  memory-worker/    Cloudflare Worker: D1 transcript ledger + engine checkpoints
+  realtime-worker/  Cloudflare Worker + Durable Objects (WebSocket sync)
 packages/
   config/  shared tsconfig / eslint
   types/   shared TypeScript types
@@ -159,5 +188,6 @@ these packages, and re-verify graph construction (`pnpm dev`) after.
   `apps/agent/src/graphs/registry.ts` and `config/intelligence.ts`, then
   point the frontend `CopilotChat agentId=...` at it.
 
-See [apps/agent/README.md](apps/agent/README.md) and
+See [apps/bff/README.md](apps/bff/README.md),
+[apps/agent/README.md](apps/agent/README.md), and
 [docs/trusted-agent-context.md](docs/trusted-agent-context.md) for details.

@@ -6,14 +6,13 @@
   "description": "Shared TypeScript and ESLint configuration.",
   "exports": {
     "./eslint/base": "./eslint/base.js",
-    "./eslint/next": "./eslint/next.js",
+    "./eslint/react": "./eslint/react.js",
     "./typescript/base": "./typescript/base.json",
-    "./typescript/next": "./typescript/next.json",
+    "./typescript/react": "./typescript/react.json",
     "./typescript/node": "./typescript/node.json"
   },
   "dependencies": {
     "@eslint/js": "^9.17.0",
-    "@next/eslint-plugin-next": "15.5.20",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "typescript-eslint": "^8.63.0"

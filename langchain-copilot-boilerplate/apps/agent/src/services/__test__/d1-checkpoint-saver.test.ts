@@ -6,6 +6,10 @@ import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import type { Checkpoint, CheckpointMetadata } from '@langchain/langgraph-checkpoint';
 
 import { D1CheckpointSaver } from '../d1-checkpoint-saver.js';
+import {
+  CHECKPOINT_USER_ID_KEY,
+  runWithCheckpointUser,
+} from '../checkpoint-user-context.js';
 
 type StoredCheckpoint = {
   userId: string;
@@ -202,9 +206,19 @@ describe('d1 checkpoint saver', () => {
     const tuple = await saver.getTuple(config());
     assert.equal(tuple?.checkpoint.id, child.id);
     assert.equal(tuple?.parentConfig?.configurable?.checkpoint_id, parent.id);
+    // Returned configs keep the verified user so parent walks / getState reuse
+    // work without AsyncLocalStorage.
+    assert.equal(
+      tuple?.parentConfig?.configurable?.[CHECKPOINT_USER_ID_KEY],
+      'user-1',
+    );
 
     const byId = await saver.getTuple(config({ checkpoint_id: parent.id }));
     assert.equal(byId?.checkpoint.id, parent.id);
+
+    // LangGraph walks parentConfig with only the keys the saver returned.
+    const viaParent = await saver.getTuple(tuple!.parentConfig!);
+    assert.equal(viaParent?.checkpoint.id, parent.id);
   });
 
   it('stores task writes idempotently and sentinel writes with replace', async () => {
@@ -263,6 +277,34 @@ describe('d1 checkpoint saver', () => {
     await assert.rejects(
       saver.getTuple({ configurable: { thread_id: 'thread-1' } }),
       /verified user context/,
+    );
+  });
+
+  it('echoes the verified user into put/getTuple returned configs', async () => {
+    const checkpoint = checkpointFixture('1efa0001-0000-6000-8000-00000000000a');
+    const returned = await saver.put(config(), checkpoint, metadataFixture, {});
+    assert.equal(returned.configurable?.[CHECKPOINT_USER_ID_KEY], 'user-1');
+
+    const tuple = await saver.getTuple(config());
+    assert.equal(tuple?.config.configurable?.[CHECKPOINT_USER_ID_KEY], 'user-1');
+  });
+
+  it('falls back to AsyncLocalStorage when LangGraph strips the user key', async () => {
+    const checkpoint = checkpointFixture('1efa0001-0000-6000-8000-00000000000a');
+    await saver.put(config(), checkpoint, metadataFixture, {});
+
+    // Mimics LangGraph's resume-at-head getTuple: only thread_id + checkpoint_ns.
+    const stripped = { configurable: { thread_id: 'thread-1', checkpoint_ns: '' } };
+    await assert.rejects(saver.getTuple(stripped), /verified user context/);
+
+    const tuple = await runWithCheckpointUser('user-1', () =>
+      saver.getTuple(stripped),
+    );
+    assert.ok(tuple);
+    assert.equal(tuple.checkpoint.id, checkpoint.id);
+    assert.equal(
+      stub.requests.at(-1)?.body.userId,
+      'user-1',
     );
   });
 });

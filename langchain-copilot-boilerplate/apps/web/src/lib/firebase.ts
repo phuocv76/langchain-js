@@ -1,19 +1,16 @@
-'use client';
-
 // Libs for third party
 import { getApp, getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
 
 /**
- * Next.js only inlines `NEXT_PUBLIC_*` vars when they are referenced with a
- * static property name. Dynamic access like `process.env[name]` is undefined
+ * Vite only inlines `VITE_*` vars when they are referenced with a static
+ * property name. Dynamic access like `import.meta.env[name]` is undefined
  * in the browser bundle, so keep these as literal lookups.
  */
-const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim();
-const FIREBASE_AUTH_DOMAIN =
-  process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim();
-const FIREBASE_PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
-const FIREBASE_APP_ID = process.env.NEXT_PUBLIC_FIREBASE_APP_ID?.trim();
+const FIREBASE_API_KEY = import.meta.env.VITE_FIREBASE_API_KEY?.trim();
+const FIREBASE_AUTH_DOMAIN = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN?.trim();
+const FIREBASE_PROJECT_ID = import.meta.env.VITE_FIREBASE_PROJECT_ID?.trim();
+const FIREBASE_APP_ID = import.meta.env.VITE_FIREBASE_APP_ID?.trim();
 
 export const isFirebaseConfigured = (): boolean =>
   Boolean(
@@ -34,7 +31,7 @@ const getFirebaseApp = (): FirebaseApp => {
 
   if (!isFirebaseConfigured()) {
     throw new Error(
-      'Firebase is not configured. Set NEXT_PUBLIC_FIREBASE_* in apps/web/.env.',
+      'Firebase is not configured. Set VITE_FIREBASE_* in apps/web/.env.',
     );
   }
 

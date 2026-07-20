@@ -1,0 +1,6 @@
+# Copy to `.dev.vars` for local wrangler: `cp .dev.vars.sample .dev.vars`
+# Same Firebase project as apps/agent and apps/web.
+FIREBASE_PROJECT_ID=your-project-id
+# Shared secret the agent sends on POST /publish (not a Firebase token).
+REALTIME_PUBLISH_SECRET=dev-realtime-publish-secret-change-me
+CORS_ORIGINS=http://localhost:3000

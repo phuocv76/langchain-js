@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * Structured renderers for workspace tool results.
  *

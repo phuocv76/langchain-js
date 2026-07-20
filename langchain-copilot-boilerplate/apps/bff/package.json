@@ -1,0 +1,29 @@
+{
+  "name": "@repo/bff",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BFF Hono server composing the CopilotKit runtime over in-process LangGraph agents.",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "build": "tsup --config tsup.config.ts",
+    "start": "node --env-file=.env dist/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@copilotkit/runtime": "1.62.3",
+    "@hono/node-server": "^1.19.14",
+    "@repo/agent": "workspace:*",
+    "hono": "^4.12.28",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@repo/config": "workspace:*",
+    "@types/node": "^22.20.1",
+    "eslint": "^9.17.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.3"
+  }
+}

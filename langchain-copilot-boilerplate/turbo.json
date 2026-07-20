@@ -2,8 +2,8 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "globalDependencies": [
-    "apps/agent/.env",
-    "apps/agent/.env.example",
+    "apps/bff/.env",
+    "apps/bff/.env.example",
     "apps/web/.env",
     "apps/web/.env.example"
   ],
@@ -24,6 +24,8 @@
     "MEMORY_WORKER_URL",
     "CF_ACCESS_CLIENT_ID",
     "CF_ACCESS_CLIENT_SECRET",
+    "REALTIME_WORKER_URL",
+    "REALTIME_PUBLISH_SECRET",
     "COPILOTKIT_TELEMETRY_DISABLED",
     "LANGSMITH_TRACING",
     "LANGSMITH_API_KEY",
@@ -31,12 +33,13 @@
     "FIREBASE_PROJECT_ID",
     "FIREBASE_CLIENT_EMAIL",
     "FIREBASE_PRIVATE_KEY",
-    "NEXT_PUBLIC_COPILOT_RUNTIME_URL",
-    "NEXT_PUBLIC_AGENT_ID",
-    "NEXT_PUBLIC_FIREBASE_API_KEY",
-    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
-    "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
-    "NEXT_PUBLIC_FIREBASE_APP_ID"
+    "VITE_COPILOT_RUNTIME_URL",
+    "VITE_AGENT_ID",
+    "VITE_FIREBASE_API_KEY",
+    "VITE_FIREBASE_AUTH_DOMAIN",
+    "VITE_FIREBASE_PROJECT_ID",
+    "VITE_FIREBASE_APP_ID",
+    "VITE_REALTIME_WS_URL"
   ],
   "tasks": {
     "dev": {
@@ -45,7 +48,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**"]
     },
     "lint": {
       "dependsOn": ["^build"]

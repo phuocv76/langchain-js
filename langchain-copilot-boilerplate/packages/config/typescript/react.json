@@ -1,15 +1,14 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "Next.js",
+  "display": "React (Vite)",
   "extends": "./base.json",
   "compilerOptions": {
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowJs": true,
-    "incremental": true,
     "noEmit": true,
-    "plugins": [{ "name": "next" }]
+    "types": ["vite/client"]
   }
 }

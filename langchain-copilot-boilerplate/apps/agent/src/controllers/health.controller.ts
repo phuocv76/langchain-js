@@ -8,7 +8,7 @@ import type { HealthStatus } from '@repo/types';
 export const handleHealth = (c: Context): Response => {
   const payload: HealthStatus = {
     status: 'ok',
-    service: '@repo/agent',
+    service: '@repo/bff',
     uptimeSeconds: Math.round(process.uptime()),
   };
 

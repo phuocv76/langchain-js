@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "agent-realtime",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-13",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "USER_HUB",
+        "class_name": "UserHub"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["UserHub"]
+    }
+  ],
+  "vars": {
+    "CORS_ORIGINS": "http://localhost:3000"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@repo/realtime-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8789 --inspector-port 9231",
+    "deploy": "wrangler deploy",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jose": "^6.0.11",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260320.0",
+    "@repo/config": "workspace:*",
+    "eslint": "^9.17.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.67.0"
+  }
+}

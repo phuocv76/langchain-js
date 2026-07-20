@@ -1,5 +1,3 @@
-'use client';
-
 // Internal
 import { AuthProvider } from '@/components/auth/auth-provider';
 import { CopilotKitProvider } from '@/components/providers/copilot-kit-provider';

@@ -9,13 +9,13 @@ import {
   assertUserVerificationConfigured,
   corsOrigins,
   env,
-} from '@agent/config/env.js';
-import { handleCopilotKitRequest } from '@agent/copilotkit.js';
-import { errorHandler } from '@agent/middleware/error.js';
-import { requireAgentUser } from '@agent/middleware/agent-user-auth.js';
-import { healthRoute } from '@agent/routes/health.route.js';
-import { memoryRoute } from '@agent/routes/memory.route.js';
-import { logger } from '@agent/utils/logger.js';
+  errorHandler,
+  healthRoute,
+  logger,
+  memoryRoute,
+  requireAgentUser,
+} from '@repo/agent';
+import { handleCopilotKitRequest } from '@bff/copilotkit.js';
 
 const app = new Hono();
 
@@ -49,7 +49,7 @@ app.use('/memory/*', requireAgentUser);
 app.route('/health', healthRoute);
 app.route('/memory', memoryRoute);
 
-// CopilotKit runtime (agents run in this process; D1 owns persistence).
+// CopilotKit runtime (agents run in-process via @repo/agent; D1 owns persistence).
 app.all('/copilotkit', (c) => handleCopilotKitRequest(c.req.raw));
 app.all('/copilotkit/*', (c) => handleCopilotKitRequest(c.req.raw));
 
@@ -58,7 +58,7 @@ app.all('/copilotkit/*', (c) => handleCopilotKitRequest(c.req.raw));
 assertUserVerificationConfigured();
 
 serve({ fetch: app.fetch, port: env.AGENT_PORT }, (info) => {
-  logger.info(`Agent API ready at http://localhost:${info.port}`);
+  logger.info(`BFF ready at http://localhost:${info.port}`);
   logger.info(`  - CopilotKit runtime: POST /copilotkit`);
   logger.info(`  - Health:             GET  /health`);
 });

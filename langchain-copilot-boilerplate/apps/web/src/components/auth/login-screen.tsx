@@ -1,5 +1,3 @@
-'use client';
-
 // Libs for third party
 import { useState } from 'react';
 
@@ -78,8 +76,7 @@ export const LoginScreen = (): React.JSX.Element => {
           </button>
           {!firebaseConfigured && (
             <p className="mt-3 text-center text-xs text-muted-foreground">
-              Firebase is not configured. Set NEXT_PUBLIC_FIREBASE_* in
-              apps/web/.env.
+              Firebase is not configured. Set VITE_FIREBASE_* in apps/web/.env.
             </p>
           )}
           {error && (

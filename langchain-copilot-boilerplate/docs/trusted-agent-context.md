@@ -51,7 +51,7 @@ time). The middleware loads the existing user by email — it never creates
 accounts — requires an allowed domain and active status, and the API's
 regular permission checks then apply to that acting user. Configure the
 secret with `wrangler secret put AGENT_SERVICE_TOKEN --env dev` and set the
-same value as `API_SERVICE_TOKEN` in `apps/agent/.env`.
+same value as `API_SERVICE_TOKEN` in `apps/bff/.env`.
 
 ## Durable memory service
 

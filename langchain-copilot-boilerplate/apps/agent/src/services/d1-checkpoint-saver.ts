@@ -14,6 +14,10 @@ import {
 
 // Internal
 import { env } from '@agent/config/env.js';
+import {
+  CHECKPOINT_USER_ID_KEY,
+  getCheckpointUserId,
+} from '@agent/services/checkpoint-user-context.js';
 import { accessHeaders } from '@agent/services/memory-client.js';
 
 /**
@@ -94,18 +98,26 @@ export class D1CheckpointSaver extends BaseCheckpointSaver {
   }
 
   /**
-   * Every checkpoint operation runs inside a request whose configurable
-   * carries the sanitized identity claims (the same `x-agent-*` keys the
-   * durable-memory middleware verifies), so the user scope is never taken
-   * from model-controlled input.
+   * Resolves the user/thread scope for a checkpoint op.
+   *
+   * Prefer `configurable[x-agent-user-id]` when LangGraph still has it (the
+   * bridge always sets it on the initial invoke). Fall back to the
+   * request-scoped AsyncLocalStorage value for the configs LangGraph
+   * synthesizes itself — those only carry thread_id / checkpoint_ns /
+   * checkpoint_id and would otherwise fail the multi-tenant check.
+   * Neither path accepts model-controlled input.
    */
   #scope(config: RunnableConfig): CheckpointScope {
     const configurable = config.configurable ?? {};
     const threadId = configurable.thread_id as unknown;
-    const userId = configurable['x-agent-user-id'] as unknown;
     if (typeof threadId !== 'string' || !threadId) {
       throw new CheckpointServiceError('Checkpoint access requires a thread_id');
     }
+    const fromConfig = configurable[CHECKPOINT_USER_ID_KEY] as unknown;
+    const userId =
+      typeof fromConfig === 'string' && fromConfig
+        ? fromConfig
+        : getCheckpointUserId();
     if (typeof userId !== 'string' || !userId) {
       throw new CheckpointServiceError(
         'Checkpoint access requires the verified user context',
@@ -119,12 +131,17 @@ export class D1CheckpointSaver extends BaseCheckpointSaver {
     };
   }
 
+  /**
+   * Echo the verified user back into returned configs so parentConfig walks
+   * and `getState().config` reuse keep working without relying solely on ALS.
+   */
   #tupleConfig(scope: CheckpointScope, checkpointId: string): RunnableConfig {
     return {
       configurable: {
         thread_id: scope.threadId,
         checkpoint_ns: scope.checkpointNs,
         checkpoint_id: checkpointId,
+        [CHECKPOINT_USER_ID_KEY]: scope.userId,
       },
     };
   }

@@ -1,5 +1,3 @@
-'use client';
-
 // Libs for third party
 import { CopilotKit, useCopilotKit } from '@copilotkit/react-core/v2';
 import { useEffect } from 'react';

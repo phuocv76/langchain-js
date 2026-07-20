@@ -64,8 +64,8 @@ describe('agent environment schema', () => {
   });
 
   it('lets the graph process run in production without Firebase', () => {
-    // The LangGraph server container runs with NODE_ENV=production but sits
-    // behind the trust boundary, so the schema itself must not require it.
+    // The agent library may import env under NODE_ENV=production (e.g. when
+    // bundled into the BFF) but only the BFF bootstrap asserts Firebase.
     const result = envSchema.safeParse({ NODE_ENV: 'production' });
     assert.equal(result.success, true);
   });
@@ -78,5 +78,22 @@ describe('agent environment schema', () => {
   it('accepts a complete production configuration for the runtime', () => {
     const candidate = envSchema.parse(PRODUCTION_FIREBASE);
     assert.doesNotThrow(() => assertUserVerificationConfigured(candidate));
+  });
+
+  it('rejects a lone realtime worker URL without a publish secret', () => {
+    const result = envSchema.safeParse({
+      NODE_ENV: 'test',
+      REALTIME_WORKER_URL: 'http://localhost:8789',
+    });
+    assert.equal(result.success, false);
+  });
+
+  it('accepts matching realtime worker URL and publish secret', () => {
+    const result = envSchema.safeParse({
+      NODE_ENV: 'test',
+      REALTIME_WORKER_URL: 'http://localhost:8789',
+      REALTIME_PUBLISH_SECRET: 'dev-secret',
+    });
+    assert.equal(result.success, true);
   });
 });

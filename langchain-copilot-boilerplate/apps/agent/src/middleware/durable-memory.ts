@@ -19,6 +19,7 @@ import {
   listMemoryThread,
   retrieveMemory,
 } from '@agent/services/memory-client.js';
+import { nowIso, publishRealtimeEvent } from '@agent/services/realtime/index.js';
 import { memoryManagementTool } from '@agent/tools/memory-management.tool.js';
 
 type AgentState = {
@@ -147,6 +148,14 @@ export const durableMemoryMiddleware = createMiddleware({
         content = JSON.stringify(turns);
       } else if (action === 'delete_thread') {
         await deleteMemoryThread(identity);
+        await publishRealtimeEvent({
+          userId: identity.userId,
+          event: {
+            type: 'THREAD_DELETED',
+            threadId: identity.threadId,
+            updatedAt: nowIso(),
+          },
+        });
         content = 'The current conversation memory has been deleted.';
       } else if (action === 'delete_all') {
         await deleteMemoryUser(identity);
@@ -177,7 +186,7 @@ export const durableMemoryMiddleware = createMiddleware({
       retrieveMemory(agentContext, userTurn.content),
       [],
     );
-    const userWriteId = await swallowMemoryError(
+    const userWrite = await swallowMemoryError(
       'user turn write',
       appendMemoryTurn({
         ...agentContext,
@@ -186,10 +195,32 @@ export const durableMemoryMiddleware = createMiddleware({
       }),
       undefined,
     );
+    if (userWrite) {
+      const updatedAt = nowIso();
+      await publishRealtimeEvent({
+        userId: agentContext.userId,
+        event: {
+          type: 'MESSAGE_CREATED',
+          threadId: agentContext.threadId,
+          messageId: userTurn.messageId ?? userWrite.id,
+          role: 'user',
+          updatedAt,
+        },
+      });
+      await publishRealtimeEvent({
+        userId: agentContext.userId,
+        event: {
+          type: userWrite.isNewThread ? 'THREAD_CREATED' : 'THREAD_UPDATED',
+          threadId: agentContext.threadId,
+          title: userWrite.isNewThread ? userTurn.content.slice(0, 80) : undefined,
+          updatedAt,
+        },
+      });
+    }
     return {
       agentContext,
       retrievedMemory,
-      memoryWriteIds: userWriteId ? [userWriteId] : [],
+      memoryWriteIds: userWrite ? [userWrite.id] : [],
     };
   },
   wrapModelCall: async (request, handler) => {
@@ -209,7 +240,7 @@ export const durableMemoryMiddleware = createMiddleware({
     if (!state.agentContext) return;
     const assistantTurn = latestTurn(state.messages, isAIMessage);
     if (!assistantTurn) return;
-    const assistantWriteId = await swallowMemoryError(
+    const assistantWrite = await swallowMemoryError(
       'assistant turn write',
       appendMemoryTurn({
         ...state.agentContext,
@@ -218,9 +249,30 @@ export const durableMemoryMiddleware = createMiddleware({
       }),
       undefined,
     );
+    if (assistantWrite) {
+      const updatedAt = nowIso();
+      await publishRealtimeEvent({
+        userId: state.agentContext.userId,
+        event: {
+          type: 'MESSAGE_CREATED',
+          threadId: state.agentContext.threadId,
+          messageId: assistantTurn.messageId ?? assistantWrite.id,
+          role: 'assistant',
+          updatedAt,
+        },
+      });
+      await publishRealtimeEvent({
+        userId: state.agentContext.userId,
+        event: {
+          type: assistantWrite.isNewThread ? 'THREAD_CREATED' : 'THREAD_UPDATED',
+          threadId: state.agentContext.threadId,
+          updatedAt,
+        },
+      });
+    }
     return {
-      memoryWriteIds: assistantWriteId
-        ? [...(state.memoryWriteIds ?? []), assistantWriteId]
+      memoryWriteIds: assistantWrite
+        ? [...(state.memoryWriteIds ?? []), assistantWrite.id]
         : [...(state.memoryWriteIds ?? [])],
     };
   },

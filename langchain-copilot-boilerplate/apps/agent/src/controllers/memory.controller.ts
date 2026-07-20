@@ -11,6 +11,7 @@ import {
   renameMemoryThread,
   type MemoryIdentity,
 } from '@agent/services/memory-client.js';
+import { nowIso, publishRealtimeEvent } from '@agent/services/realtime/index.js';
 
 const identityFor = (context: Context, threadId: string): MemoryIdentity => {
   const user = context.get('agentUser') as AgentUserContext;
@@ -72,6 +73,16 @@ export const renameThread = async (context: Context): Promise<Response> => {
     return context.json({ error: 'title must be a non-empty string (max 200 chars)' }, 400);
   }
   await renameMemoryThread(identityFor(context, threadId), title.trim());
+  const user = context.get('agentUser') as AgentUserContext;
+  await publishRealtimeEvent({
+    userId: user.userId,
+    event: {
+      type: 'THREAD_RENAMED',
+      threadId,
+      title: title.trim(),
+      updatedAt: nowIso(),
+    },
+  });
   return context.json({ ok: true });
 };
 
@@ -91,5 +102,15 @@ export const deleteThread = async (context: Context): Promise<Response> => {
       error instanceof Error ? error.message : 'unknown error',
     );
   }
+
+  const user = context.get('agentUser') as AgentUserContext;
+  await publishRealtimeEvent({
+    userId: user.userId,
+    event: {
+      type: 'THREAD_DELETED',
+      threadId,
+      updatedAt: nowIso(),
+    },
+  });
   return context.json({ ok: true });
 };

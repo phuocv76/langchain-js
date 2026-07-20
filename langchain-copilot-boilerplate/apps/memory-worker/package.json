@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --env offline --port 8788",
-    "dev:offline": "wrangler dev --env offline --port 8788",
+    "dev": "wrangler dev --env offline --port 8788 --inspector-port 9230",
+    "dev:offline": "wrangler dev --env offline --port 8788 --inspector-port 9230",
     "deploy": "wrangler deploy",
     "lint": "eslint src",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:apply:local": "wrangler d1 migrations apply agent-memory --local --env offline",
+    "db:apply:remote": "wrangler d1 migrations apply agent-memory --remote"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260320.0",

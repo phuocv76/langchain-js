@@ -1,20 +1,18 @@
 // Libs for third party
-import tseslint from 'typescript-eslint';
-import nextPlugin from '@next/eslint-plugin-next';
 import reactHooks from 'eslint-plugin-react-hooks';
 
 // Internal
 import { baseConfig } from './base.js';
 
 /**
- * ESLint config for the Next.js app. Extends the shared base with browser globals.
+ * ESLint config for React (Vite) apps. Extends the shared base with browser
+ * globals and react-hooks rules.
  * @type {import('eslint').Linter.Config[]}
  */
-export const nextConfig = [
+export const reactConfig = [
   ...baseConfig,
   {
     plugins: {
-      '@next/next': nextPlugin,
       'react-hooks': reactHooks,
     },
     languageOptions: {
@@ -24,11 +22,9 @@ export const nextConfig = [
       },
     },
     rules: {
-      ...nextPlugin.configs.recommended.rules,
-      ...nextPlugin.configs['core-web-vitals'].rules,
       ...reactHooks.configs.recommended.rules,
     },
   },
 ];
 
-export default nextConfig;
+export default reactConfig;

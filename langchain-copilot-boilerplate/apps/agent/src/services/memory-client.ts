@@ -57,9 +57,14 @@ const requestMemoryService = async <T>(
 
 export const appendMemoryTurn = async (
   turn: MemoryTurn,
-): Promise<string | undefined> => {
-  const result = await requestMemoryService<{ id: string }>('/v1/turns', 'POST', turn);
-  return result?.id;
+): Promise<{ id: string; isNewThread: boolean } | undefined> => {
+  const result = await requestMemoryService<{ id: string; isNewThread?: boolean }>(
+    '/v1/turns',
+    'POST',
+    turn,
+  );
+  if (!result?.id) return undefined;
+  return { id: result.id, isNewThread: result.isNewThread === true };
 };
 
 export const retrieveMemory = async (

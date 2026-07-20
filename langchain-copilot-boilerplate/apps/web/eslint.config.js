@@ -1,8 +1,8 @@
-import { nextConfig } from '@repo/config/eslint/next';
+import { reactConfig } from '@repo/config/eslint/react';
 
 export default [
-  ...nextConfig,
+  ...reactConfig,
   {
-    ignores: ['.next/**', 'next-env.d.ts'],
+    ignores: ['dist/**'],
   },
 ];

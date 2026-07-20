@@ -1,0 +1,15 @@
+{
+  "extends": "@repo/config/typescript/node",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@bff/*": ["./src/*"],
+      "@agent/*": ["../agent/src/*"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

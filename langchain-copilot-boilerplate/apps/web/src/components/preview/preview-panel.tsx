@@ -1,5 +1,3 @@
-'use client';
-
 // Internal
 import { PreviewBody } from '@/components/preview/preview-body';
 import { usePreviewPanel } from '@/components/preview/preview-panel-context';

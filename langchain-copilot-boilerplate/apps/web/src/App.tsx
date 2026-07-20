@@ -1,12 +1,9 @@
-'use client';
-
-// Internal
 import { useAuth } from '@/components/auth/auth-provider';
 import { LoginScreen } from '@/components/auth/login-screen';
 import { ChatView } from '@/components/chat/chat-view';
 
 /** Single-route app: login gate, then the full-window chat. */
-const HomePage = (): React.JSX.Element => {
+export const App = (): React.JSX.Element => {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -23,5 +20,3 @@ const HomePage = (): React.JSX.Element => {
 
   return <ChatView />;
 };
-
-export default HomePage;

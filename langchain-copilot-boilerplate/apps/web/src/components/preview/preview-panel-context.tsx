@@ -1,5 +1,3 @@
-'use client';
-
 // Libs for third party
 import { createContext, useContext, useMemo, useState } from 'react';
 

@@ -1,16 +1,8 @@
-'use client';
-
 // Libs for third party
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 // Internal
-import { useAuth } from '@/components/auth/auth-provider';
-import {
-  deleteThread,
-  fetchThreads,
-  renameThread,
-  type ThreadSummary,
-} from '@/lib/agent-api';
+import { useThreadList } from '@/components/history/thread-list-context';
 
 const formatUpdatedAt = (value: string): string => {
   // D1 timestamps are UTC without a zone suffix; normalize before parsing.
@@ -26,8 +18,8 @@ const formatUpdatedAt = (value: string): string => {
 
 /**
  * Conversation history from the durable transcript store (D1), scoped
- * server-side to the signed-in user. Refetches whenever the active thread
- * changes so a thread created by the current chat shows up once persisted.
+ * server-side to the signed-in user. List state lives in ThreadListProvider
+ * so realtime events can update every open session.
  */
 export const ThreadSidebar = ({
   activeThreadId,
@@ -38,23 +30,7 @@ export const ThreadSidebar = ({
   readonly onSelectThread: (threadId: string) => void;
   readonly onNewThread: () => void;
 }): React.JSX.Element => {
-  const { idToken } = useAuth();
-  const [threads, setThreads] = useState<readonly ThreadSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const reload = useCallback((): void => {
-    if (!idToken) return;
-    fetchThreads(idToken)
-      .then((next) => {
-        setThreads(next);
-        setError(null);
-      })
-      .catch(() => setError('Could not load history.'))
-      .finally(() => setIsLoading(false));
-  }, [idToken]);
-
-  useEffect(reload, [reload, activeThreadId]);
+  const { threads, isLoading, error, renameThread, deleteThread } = useThreadList();
 
   // Inline flows instead of window.prompt/confirm: native dialogs block the
   // page and cannot be styled or dismissed programmatically.
@@ -66,27 +42,21 @@ export const ThreadSidebar = ({
     (threadId: string): void => {
       const title = draftTitle.trim();
       setEditingThreadId(null);
-      if (!idToken || !title) return;
-      renameThread(idToken, threadId, title)
-        .then(reload)
-        .catch(() => setError('Rename failed.'));
+      if (!title) return;
+      void renameThread(threadId, title);
     },
-    [idToken, draftTitle, reload],
+    [draftTitle, renameThread],
   );
 
   const submitDelete = useCallback(
     (threadId: string): void => {
       setConfirmingThreadId(null);
-      if (!idToken) return;
-      deleteThread(idToken, threadId)
-        .then(() => {
-          reload();
-          // Leaving the user inside a deleted conversation would be confusing.
-          if (threadId === activeThreadId) onNewThread();
-        })
-        .catch(() => setError('Delete failed.'));
+      void deleteThread(threadId).then(() => {
+        // Leaving the user inside a deleted conversation would be confusing.
+        if (threadId === activeThreadId) onNewThread();
+      });
     },
-    [idToken, reload, activeThreadId, onNewThread],
+    [deleteThread, activeThreadId, onNewThread],
   );
 
   return (

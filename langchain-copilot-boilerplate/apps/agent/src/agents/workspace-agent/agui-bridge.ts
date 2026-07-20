@@ -29,6 +29,7 @@ import {
 // Internal
 import { compileWithDurableCheckpoints } from '@agent/agents/workspace-agent/graph.js';
 import type { AgentUserContext } from '@agent/middleware/agent-user-auth.js';
+import { withCheckpointUser } from '@agent/services/checkpoint-user-context.js';
 
 /**
  * Per-run context handed to a BuiltInAgent custom factory (input, abort
@@ -234,8 +235,18 @@ const toToolMessage = (output: unknown): ToolResultLike | undefined => {
  * replaces the provisional ids with the engine ids so the D1 hydration can
  * dedupe by id, and the frontend re-merges any older history the engine has
  * already compacted away.
+ *
+ * The verified user is installed into AsyncLocalStorage for the whole pull
+ * of this generator so D1CheckpointSaver can still resolve the tenant when
+ * LangGraph synthesizes configs that omit `x-agent-user-id`.
  */
-export const streamWorkspaceRun = async function* (
+export const streamWorkspaceRun = (
+  context: RunFactoryContext,
+  user: AgentUserContext,
+): AsyncGenerator<BaseEvent> =>
+  withCheckpointUser(user.userId, streamWorkspaceRunInner(context, user));
+
+const streamWorkspaceRunInner = async function* (
   context: RunFactoryContext,
   user: AgentUserContext,
 ): AsyncGenerator<BaseEvent> {

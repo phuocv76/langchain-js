@@ -1,5 +1,3 @@
-'use client';
-
 // Libs for third party
 import { CopilotChat } from '@copilotkit/react-core/v2';
 import { useCallback, useState } from 'react';
@@ -7,19 +5,30 @@ import { useCallback, useState } from 'react';
 // Internal
 import { useAuth } from '@/components/auth/auth-provider';
 import { ThreadHydrator } from '@/components/history/thread-hydrator';
+import { ThreadListProvider } from '@/components/history/thread-list-context';
 import { ThreadSidebar } from '@/components/history/thread-sidebar';
 import { PreviewPanel } from '@/components/preview/preview-panel';
 import { WorkspaceToolRenderers } from '@/components/preview/workspace-tool-renderers';
+import { useRealtimeSync } from '@/hooks/use-realtime-sync';
 import { AGENT_ID } from '@/lib/config';
 
-/** Full-window chat surface: history sidebar, chat, and result preview panel. */
-export const ChatView = (): React.JSX.Element => {
+const ChatSurface = ({
+  threadId,
+  setThreadId,
+  startNewThread,
+}: {
+  readonly threadId: string;
+  readonly setThreadId: (threadId: string) => void;
+  readonly startNewThread: () => void;
+}): React.JSX.Element => {
   const { user, logout } = useAuth();
-  const [threadId, setThreadId] = useState<string>(() => crypto.randomUUID());
 
-  const startNewThread = useCallback((): void => {
-    setThreadId(crypto.randomUUID());
-  }, []);
+  useRealtimeSync({
+    activeThreadId: threadId,
+    onThreadDeleted: (deletedId) => {
+      if (deletedId === threadId) startNewThread();
+    },
+  });
 
   return (
     <div className="flex h-dvh flex-col bg-background">
@@ -61,5 +70,24 @@ export const ChatView = (): React.JSX.Element => {
         <PreviewPanel />
       </div>
     </div>
+  );
+};
+
+/** Full-window chat surface: history sidebar, chat, and result preview panel. */
+export const ChatView = (): React.JSX.Element => {
+  const [threadId, setThreadId] = useState<string>(() => crypto.randomUUID());
+
+  const startNewThread = useCallback((): void => {
+    setThreadId(crypto.randomUUID());
+  }, []);
+
+  return (
+    <ThreadListProvider activeThreadId={threadId}>
+      <ChatSurface
+        threadId={threadId}
+        setThreadId={setThreadId}
+        startNewThread={startNewThread}
+      />
+    </ThreadListProvider>
   );
 };
