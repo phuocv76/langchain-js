@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Runtime v2 — In-Process + D1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ THEME — Midnight Editorial ============ */
+  :root {
+    --font-body: 'Instrument Serif', Georgia, serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+    --bg: #0f1729;
+    --surface: #162040;
+    --surface2: #1d2b52;
+    --border: rgba(200, 180, 140, 0.1);
+    --border-bright: rgba(200, 180, 140, 0.2);
+    --text: #e8e4d8;
+    --text-dim: #9a9484;
+    --accent: #d4a73a;
+    --accent-dim: rgba(212, 167, 58, 0.1);
+    --green: #7fb069;
+    --red: #c76a6a;
+    --code-bg: #0a0f1e;
+    --code-text: #d4d0c4;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #faf8f2;
+      --surface: #ffffff;
+      --surface2: #f5f0e6;
+      --border: rgba(30, 30, 50, 0.09);
+      --border-bright: rgba(30, 30, 50, 0.18);
+      --text: #1a1814;
+      --text-dim: #7a7468;
+      --accent: #b8860b;
+      --accent-dim: rgba(184, 134, 11, 0.08);
+      --green: #4d7c0f;
+      --red: #b91c1c;
+      --code-bg: #2a2520;
+      --code-text: #e8e4d8;
+    }
+  }
+  [data-theme="light"] {
+    --bg: #faf8f2;
+    --surface: #ffffff;
+    --surface2: #f5f0e6;
+    --border: rgba(30, 30, 50, 0.09);
+    --border-bright: rgba(30, 30, 50, 0.18);
+    --text: #1a1814;
+    --text-dim: #7a7468;
+    --accent: #b8860b;
+    --accent-dim: rgba(184, 134, 11, 0.08);
+    --green: #4d7c0f;
+    --red: #b91c1c;
+    --code-bg: #2a2520;
+    --code-text: #e8e4d8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    overflow: hidden;
+  }
+
+  /* ============ THEME TOGGLE ============ */
+  .theme-toggle {
+    position: fixed; top: 16px; right: 16px; z-index: 300;
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: background 0.15s, color 0.15s;
+  }
+  .theme-toggle:hover { background: var(--surface2); color: var(--text); }
+
+  /* ============ DECK ENGINE ============ */
+  .deck {
+    height: 100dvh;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  .slide {
+    height: 100dvh;
+    scroll-snap-align: start;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(40px, 6vh, 80px) clamp(40px, 8vw, 120px);
+    isolation: isolate;
+    opacity: 0;
+    transform: translateY(40px) scale(0.98);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .slide.visible { opacity: 1; transform: none; }
+  .slide .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .slide.visible .reveal { opacity: 1; transform: none; }
+  .slide.visible .reveal:nth-child(1) { transition-delay: 0.1s; }
+  .slide.visible .reveal:nth-child(2) { transition-delay: 0.2s; }
+  .slide.visible .reveal:nth-child(3) { transition-delay: 0.3s; }
+  .slide.visible .reveal:nth-child(4) { transition-delay: 0.4s; }
+  .slide.visible .reveal:nth-child(5) { transition-delay: 0.5s; }
+  .slide.visible .reveal:nth-child(6) { transition-delay: 0.6s; }
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .slide .reveal {
+      opacity: 1 !important; transform: none !important; transition: none !important;
+    }
+  }
+
+  /* Alternating gold glow backgrounds */
+  .slide:nth-child(odd)  { background-image: radial-gradient(ellipse at 18% 85%, var(--accent-dim) 0%, transparent 55%); }
+  .slide:nth-child(even) { background-image: radial-gradient(ellipse at 82% 15%, var(--accent-dim) 0%, transparent 55%); }
+
+  /* ============ TYPOGRAPHY ============ */
+  .slide__display {
+    font-size: clamp(48px, 9vw, 110px);
+    font-weight: 400;
+    letter-spacing: -1px;
+    line-height: 1.0;
+    text-wrap: balance;
+  }
+  .slide__heading {
+    font-size: clamp(28px, 4.6vw, 46px);
+    font-weight: 400;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    text-wrap: balance;
+    margin-bottom: clamp(12px, 2.5vh, 28px);
+  }
+  .slide__label {
+    font-family: var(--font-mono);
+    font-size: clamp(10px, 1.2vw, 13px);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: clamp(8px, 1.5vh, 14px);
+  }
+  .slide__subtitle {
+    font-family: var(--font-mono);
+    font-size: clamp(13px, 1.7vw, 18px);
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+  }
+  em { color: var(--accent); font-style: italic; }
+
+  /* ============ SLIDE TYPES ============ */
+  .slide--title { justify-content: center; align-items: center; text-align: center; }
+
+  .slide--divider { justify-content: center; }
+  .slide--divider .slide__number {
+    font-family: var(--font-mono);
+    font-size: clamp(100px, 22vw, 260px);
+    font-weight: 200;
+    line-height: 0.85;
+    opacity: 0.07;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -55%);
+    pointer-events: none;
+  }
+
+  .slide--content .slide__inner {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: clamp(24px, 4vw, 60px);
+    align-items: center;
+    width: 100%;
+  }
+  .slide--content .slide__inner > * { min-width: 0; }
+  .slide__bullets { list-style: none; }
+  .slide__bullets li {
+    padding: clamp(6px, 1.2vh, 12px) 0 clamp(6px, 1.2vh, 12px) 24px;
+    position: relative;
+    font-size: clamp(16px, 2vw, 22px);
+    line-height: 1.55;
+    color: var(--text-dim);
+    overflow-wrap: break-word;
+  }
+  .slide__bullets li::before {
+    content: '';
+    position: absolute; left: 0; top: clamp(16px, 2.2vh, 22px);
+    width: 7px; height: 7px;
+    transform: rotate(45deg);
+    background: var(--accent);
+  }
+  .slide__bullets strong { color: var(--text); font-weight: 400; }
+  .slide__bullets code, .slide__body code, td code {
+    font-family: var(--font-mono);
+    font-size: 0.72em;
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  /* ============ PIPELINE ============ */
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    margin-top: clamp(12px, 2vh, 24px);
+  }
+  .pipeline__step {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: clamp(14px, 2.5vh, 26px) clamp(12px, 1.4vw, 20px);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+  .pipeline__num {
+    font-family: var(--font-mono);
+    font-size: clamp(10px, 1.1vw, 12px);
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+  .pipeline__name {
+    font-size: clamp(17px, 2vw, 24px);
+    margin: clamp(4px, 0.8vh, 8px) 0;
+  }
+  .pipeline__desc {
+    font-family: var(--font-mono);
+    font-size: clamp(11px, 1.15vw, 14px);
+    color: var(--text-dim);
+    line-height: 1.55;
+    flex: 1;
+  }
+  .pipeline__file {
+    font-family: var(--font-mono);
+    font-size: clamp(9px, 1vw, 11px);
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-top: clamp(8px, 1.5vh, 14px);
+    align-self: flex-start;
+  }
+  .pipeline__arrow {
+    display: flex; align-items: center;
+    padding: 0 clamp(3px, 0.4vw, 6px);
+    color: var(--accent);
+    flex-shrink: 0;
+    opacity: 0.45;
+  }
+
+  /* ============ BEFORE / AFTER ============ */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(14px, 2vw, 28px);
+    margin-top: clamp(12px, 2vh, 24px);
+  }
+  .compare__col {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: clamp(16px, 2.6vh, 28px) clamp(16px, 2vw, 26px);
+    min-width: 0;
+  }
+  .compare__col--old { border-top: 3px solid var(--red); }
+  .compare__col--new { border-top: 3px solid var(--green); }
+  .compare__title {
+    font-family: var(--font-mono);
+    font-size: clamp(11px, 1.2vw, 13px);
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: clamp(8px, 1.4vh, 14px);
+  }
+  .compare__col--old .compare__title { color: var(--red); }
+  .compare__col--new .compare__title { color: var(--green); }
+  .compare__col ul { list-style: none; }
+  .compare__col li {
+    font-family: var(--font-mono);
+    font-size: clamp(11px, 1.3vw, 15px);
+    color: var(--text-dim);
+    line-height: 1.6;
+    padding: clamp(4px, 0.8vh, 8px) 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .compare__col li:last-child { border-bottom: none; }
+  .compare__col strong { color: var(--text); font-weight: 400; }
+
+  /* ============ TREE / CODE ============ */
+  .dir-tree {
+    font-family: var(--font-mono);
+    font-size: clamp(11px, 1.35vw, 16px);
+    line-height: 1.75;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: clamp(16px, 3vh, 28px) clamp(16px, 2vw, 28px);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .dir-tree .ann { color: var(--text-dim); }
+  .dir-tree .hl { color: var(--accent); }
+
+  .slide__code-block {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: clamp(20px, 3.5vh, 40px) clamp(20px, 3vw, 40px);
+    position: relative;
+    width: 100%;
+  }
+  .slide__code-filename {
+    position: absolute;
+    top: -12px; left: 24px;
+    font-family: var(--font-mono);
+    font-size: 11px; font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 4px;
+    background: var(--accent);
+    color: var(--code-bg);
+  }
+  .slide__code-block pre { margin: 0; overflow-x: auto; }
+  .slide__code-block code {
+    font-family: var(--font-mono);
+    font-size: clamp(12px, 1.5vw, 17px);
+    line-height: 1.7;
+    color: var(--code-text);
+    white-space: pre;
+  }
+  .slide__code-block .c { color: #7a8494; }
+  .slide__code-block .g { color: #d4a73a; }
+
+  /* ============ STACK CARDS ============ */
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(12px, 1.8vw, 22px);
+    margin-top: clamp(12px, 2vh, 24px);
+  }
+  .stack-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: clamp(16px, 2.6vh, 28px) clamp(14px, 1.8vw, 24px);
+    min-width: 0;
+  }
+  .stack-card__name { font-size: clamp(18px, 2.2vw, 26px); }
+  .stack-card__role {
+    font-family: var(--font-mono);
+    font-size: clamp(10px, 1.15vw, 13px);
+    color: var(--text-dim);
+    line-height: 1.55;
+    margin-top: 6px;
+  }
+  .stack-card__ver {
+    font-family: var(--font-mono);
+    font-size: clamp(9px, 1vw, 11px);
+    color: var(--accent);
+    margin-top: 10px;
+  }
+
+  /* ============ MERMAID ============ */
+  .slide--diagram { padding: clamp(24px, 4vh, 48px) clamp(24px, 4vw, 60px); }
+  .mermaid-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 0;
+    padding: clamp(12px, 2vh, 24px);
+  }
+  .mermaid { transform-origin: center center; width: 100%; }
+  .mermaid svg { width: 100% !important; height: auto !important; max-width: 100% !important; }
+  .mermaid .nodeLabel { font-family: var(--font-mono) !important; font-size: 17px !important; }
+  .mermaid .edgeLabel { font-family: var(--font-mono) !important; font-size: 13px !important; }
+  .mermaid .node rect, .mermaid .node polygon, .mermaid .node circle { stroke-width: 2px !important; }
+  .mermaid .edge-pattern-solid { stroke-width: 2px !important; }
+  .zoom-controls {
+    position: absolute; top: 8px; right: 8px;
+    display: flex; gap: 2px; z-index: 10;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px;
+  }
+  .zoom-controls button {
+    width: 28px; height: 28px;
+    border: none; background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono); font-size: 14px;
+    cursor: pointer; border-radius: 4px;
+  }
+  .zoom-controls button:hover { background: var(--border); color: var(--text); }
+
+  /* ============ NAV CHROME ============ */
+  .deck-progress {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: var(--accent);
+    z-index: 100;
+    transition: width 0.3s ease;
+    pointer-events: none;
+  }
+  .deck-dots {
+    position: fixed;
+    right: clamp(12px, 2vw, 24px);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 100;
+  }
+  .deck-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text-dim);
+    opacity: 0.3; border: none; padding: 0; cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .deck-dot:hover { opacity: 0.6; }
+  .deck-dot.active { opacity: 1; transform: scale(1.5); background: var(--accent); }
+  .deck-counter {
+    position: fixed;
+    bottom: clamp(12px, 2vh, 24px);
+    right: clamp(12px, 2vw, 24px);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    z-index: 100;
+    font-variant-numeric: tabular-nums;
+  }
+  .deck-hints {
+    position: fixed;
+    bottom: clamp(12px, 2vh, 24px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    opacity: 0.6; z-index: 100;
+    transition: opacity 0.5s ease;
+    white-space: nowrap;
+  }
+  .deck-hints.faded { opacity: 0; pointer-events: none; }
+
+  /* ============ DECOR ============ */
+  .slide__decor { position: absolute; pointer-events: none; z-index: 0; }
+  .slide__decor--corner { top: 0; right: 0; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-height: 700px) {
+    .slide { padding: clamp(24px, 4vh, 40px) clamp(32px, 6vw, 80px); }
+    .slide__display { font-size: clamp(36px, 8vw, 72px); }
+    .slide--divider .slide__number { font-size: clamp(80px, 16vw, 160px); }
+  }
+  @media (max-height: 500px) {
+    .deck-dots { display: none; }
+    .slide__decor { display: none; }
+  }
+  @media (max-width: 768px) {
+    .slide--content .slide__inner { grid-template-columns: 1fr; }
+    .stack-grid { grid-template-columns: repeat(2, 1fr); }
+    .pipeline { flex-direction: column; }
+    .pipeline__arrow { justify-content: center; padding: 4px 0; transform: rotate(90deg); }
+    .compare { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark theme"></button>
+<script>
+(function() {
+  var t = document.getElementById('themeToggle');
+  var s = localStorage.getItem('deck-theme');
+  var prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  var i = s || (prefersDark ? 'dark' : 'light');
+  if (s) document.documentElement.setAttribute('data-theme', i);
+  t.textContent = i === 'dark' ? '☀' : '☾';
+  t.addEventListener('click', function() {
+    var c = document.documentElement.getAttribute('data-theme')
+      || (prefersDark ? 'dark' : 'light');
+    var n = c === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', n);
+    localStorage.setItem('deck-theme', n);
+    t.textContent = n === 'dark' ? '☀' : '☾';
+  });
+})();
+</script>
+
+<div class="deck">
+
+  <!-- 1 · TITLE -->
+  <section class="slide slide--title">
+    <svg class="slide__decor slide__decor--corner" width="140" height="140" viewBox="0 0 140 140">
+      <line x1="140" y1="0" x2="140" y2="52" stroke="var(--accent)" stroke-width="2" opacity="0.25"/>
+      <line x1="88" y1="0" x2="140" y2="0" stroke="var(--accent)" stroke-width="2" opacity="0.25"/>
+    </svg>
+    <div>
+      <p class="slide__label reveal">Team walkthrough · July 2026 · v2</p>
+      <h1 class="slide__display reveal">One process,<br>one database</h1>
+      <p class="slide__subtitle reveal" style="margin-top:24px">
+        The agent runtime, rebuilt: in-process LangGraph · everything durable in D1
+      </p>
+    </div>
+  </section>
+
+  <!-- 2 · WHY CHANGE -->
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Why we changed it</p>
+        <h2 class="slide__heading reveal">v1 worked — but carried a whole second platform</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><strong>Five processes to chat locally</strong> — web, agent, LangGraph server, Postgres, Redis (three of them in Docker)</li>
+          <li class="reveal"><strong>Graph code was baked into a Docker image</strong> — every middleware change meant a rebuild, not a hot reload</li>
+          <li class="reveal"><strong>State split across two engines</strong> — checkpoints in Postgres, transcripts in D1; delete had to chase both</li>
+          <li class="reveal"><strong>An extra trust boundary to guard</strong> — <code>:2024</code> trusted identity headers; anyone reaching it could impersonate anyone</li>
+          <li class="reveal">Checkpoints only as durable as a local <strong>Docker volume</strong></li>
+        </ul>
+      </div>
+      <div class="reveal" style="text-align:center; opacity:0.85">
+        <svg width="100%" height="230" viewBox="0 0 300 230" style="max-width:300px">
+          <rect x="20" y="12" width="120" height="40" rx="8" fill="none" stroke="var(--text-dim)" stroke-width="1.5"/>
+          <text x="80" y="36" text-anchor="middle" fill="var(--text)" font-family="var(--font-mono)" font-size="11">agent :4000</text>
+          <rect x="160" y="12" width="120" height="40" rx="8" fill="none" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="220" y="30" text-anchor="middle" fill="var(--red)" font-family="var(--font-mono)" font-size="10">langgraph :2024</text>
+          <text x="220" y="44" text-anchor="middle" fill="var(--text-dim)" font-family="var(--font-mono)" font-size="9">docker image</text>
+          <rect x="160" y="70" width="56" height="36" rx="8" fill="none" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="188" y="92" text-anchor="middle" fill="var(--text-dim)" font-family="var(--font-mono)" font-size="9">pg</text>
+          <rect x="226" y="70" width="54" height="36" rx="8" fill="none" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="253" y="92" text-anchor="middle" fill="var(--text-dim)" font-family="var(--font-mono)" font-size="9">redis</text>
+          <rect x="20" y="70" width="120" height="36" rx="8" fill="none" stroke="var(--text-dim)" stroke-width="1.5"/>
+          <text x="80" y="92" text-anchor="middle" fill="var(--text)" font-family="var(--font-mono)" font-size="10">worker :8788</text>
+          <text x="150" y="140" text-anchor="middle" fill="var(--red)" font-family="var(--font-mono)" font-size="12">v1: 5 processes · 2 state engines</text>
+          <rect x="55" y="160" width="190" height="46" rx="10" fill="var(--accent-dim)" stroke="var(--accent)" stroke-width="2"/>
+          <text x="150" y="180" text-anchor="middle" fill="var(--accent)" font-family="var(--font-mono)" font-size="11">v2: agent + worker + web</text>
+          <text x="150" y="196" text-anchor="middle" fill="var(--text-dim)" font-family="var(--font-mono)" font-size="10">no docker · one durable store</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · SOLUTION -->
+  <section class="slide">
+    <p class="slide__label reveal">The solution in one line</p>
+    <h2 class="slide__heading reveal">Run the graph in our own process; put every byte of state in D1</h2>
+    <div class="pipeline reveal">
+      <div class="pipeline__step">
+        <div class="pipeline__num">DROPPED</div>
+        <div class="pipeline__name">LangGraph server</div>
+        <div class="pipeline__desc">Its checkpointer isn't pluggable, so going D1 meant leaving it. Dockerfile, compose, Postgres, Redis, langgraph.json — all deleted.</div>
+        <div class="pipeline__file">−1,369 lines</div>
+      </div>
+      <div class="pipeline__arrow"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 12h14m-4-4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="pipeline__step" style="border-top-width:4px">
+        <div class="pipeline__num">NEW · apps/agent</div>
+        <div class="pipeline__name">AG-UI bridge</div>
+        <div class="pipeline__desc">A ~350-line translation layer runs the compiled graph inside the Hono process and speaks CopilotKit's AG-UI event protocol directly.</div>
+        <div class="pipeline__file">agui-bridge.ts</div>
+      </div>
+      <div class="pipeline__arrow"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 12h14m-4-4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="pipeline__step">
+        <div class="pipeline__num">NEW · D1</div>
+        <div class="pipeline__name">Checkpoints in D1</div>
+        <div class="pipeline__desc">A custom checkpoint saver (port of the official SQLite saver) persists engine state through the memory worker — next to the transcripts it already owns.</div>
+        <div class="pipeline__file">d1-checkpoint-saver.ts</div>
+      </div>
+    </div>
+    <p class="slide__subtitle reveal" style="margin-top:18px">
+      Same UI, same tools, same middleware, same auth — the engine room moved, the product didn't.
+    </p>
+  </section>
+
+  <!-- 4 · DIVIDER: ARCHITECTURE -->
+  <section class="slide slide--divider">
+    <span class="slide__number">01</span>
+    <div style="text-align:center">
+      <h2 class="slide__heading reveal">Architecture</h2>
+      <p class="slide__subtitle reveal">fewer hops, one trust boundary less</p>
+    </div>
+  </section>
+
+  <!-- 5 · ARCHITECTURE DIAGRAM -->
+  <section class="slide slide--diagram">
+    <h2 class="slide__heading reveal" style="margin-bottom:8px">Request path — v2</h2>
+    <div class="mermaid-wrap reveal">
+      <div class="zoom-controls">
+        <button onclick="zoomDiagram(this,1.25)" title="Zoom in">+</button>
+        <button onclick="zoomDiagram(this,0.8)" title="Zoom out">−</button>
+        <button onclick="resetZoom(this)" title="Reset">⟳</button>
+      </div>
+      <pre class="mermaid">
+graph LR
+  UI["apps/web :3000<br/>CopilotKit UI · Firebase ID token"]
+  subgraph runtime ["apps/agent — Hono :4000 · one process"]
+    AUTH["verify token<br/>+ domain gate"]
+    CK["CopilotKit Runtime<br/>/copilotkit · /memory"]
+    BRIDGE["AG-UI bridge<br/>BuiltInAgent factory"]
+    GRAPH["workspaceAgent<br/>middleware + ReAct loop"]
+  end
+  MW["memory-worker :8788<br/>D1: checkpoints + transcripts<br/>Vectorize recall"]
+  API["dev-space-api :8787"]
+  LLM["OpenAI"]
+  UI -->|Authorization: Bearer| AUTH
+  AUTH -->|sanitized x-agent-* only| CK
+  CK -->|per-request agent| BRIDGE
+  BRIDGE --> GRAPH
+  GRAPH --> LLM
+  GRAPH <-->|checkpoints · turns| MW
+  GRAPH -->|service token + acting user| API
+      </pre>
+    </div>
+    <p class="slide__subtitle reveal" style="margin-top:10px">
+      The graph is a function call away, not a network hop. The only remaining trust
+      boundary is the memory worker — behind Cloudflare Access in production.
+    </p>
+  </section>
+
+  <!-- 6 · BEFORE / AFTER -->
+  <section class="slide">
+    <p class="slide__label reveal">What actually changed</p>
+    <h2 class="slide__heading reveal">Before → after</h2>
+    <div class="compare reveal">
+      <div class="compare__col compare__col--old">
+        <div class="compare__title">v1 — server-hosted graph</div>
+        <ul>
+          <li><strong>5 processes</strong> — web · agent · langgraph · postgres · redis</li>
+          <li><strong>2 state engines</strong> — Postgres (checkpoints) + D1 (transcripts)</li>
+          <li>Graph changes → <strong>Docker image rebuild</strong></li>
+          <li>Identity: headers forwarded over HTTP → copied into config by the server</li>
+          <li>Checkpoint durability = local Docker volume</li>
+          <li>Checkpoints not user-scoped — guessed thread UUID could attach</li>
+          <li>Runs via <code>LangGraphAgent(deploymentUrl)</code></li>
+        </ul>
+      </div>
+      <div class="compare__col compare__col--new">
+        <div class="compare__title">v2 — in-process graph</div>
+        <ul>
+          <li><strong>3 processes</strong> — web · agent · memory worker (no Docker)</li>
+          <li><strong>1 durable store</strong> — D1 owns checkpoints, transcripts, titles, recall</li>
+          <li>Graph changes → <strong>tsx hot reload</strong></li>
+          <li>Identity: verified once, injected into the run config in-process</li>
+          <li>Checkpoints survive restarts, redeploys, laptop swaps</li>
+          <li>Every checkpoint row scoped by <code>user_id</code> — cross-user reads return nothing</li>
+          <li>Runs via <code>BuiltInAgent</code> factory + our bridge</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · DIVIDER: THE BRIDGE -->
+  <section class="slide slide--divider">
+    <span class="slide__number">02</span>
+    <div style="text-align:center">
+      <h2 class="slide__heading reveal">The bridge</h2>
+      <p class="slide__subtitle reveal">how a run executes without a graph server</p>
+    </div>
+  </section>
+
+  <!-- 8 · HOW A RUN EXECUTES -->
+  <section class="slide">
+    <p class="slide__label reveal">Workflow — one chat message</p>
+    <h2 class="slide__heading reveal">From keystroke to streamed answer, all in :4000</h2>
+    <div class="pipeline reveal">
+      <div class="pipeline__step">
+        <div class="pipeline__num">01</div>
+        <div class="pipeline__name">Verify + mint</div>
+        <div class="pipeline__desc">Auth middleware verifies the Firebase token, deletes it, overwrites x-agent-* headers with the verified identity.</div>
+        <div class="pipeline__file">agent-user-auth.ts</div>
+      </div>
+      <div class="pipeline__arrow"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14m-4-4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="pipeline__step">
+        <div class="pipeline__num">02</div>
+        <div class="pipeline__name">Per-request agent</div>
+        <div class="pipeline__desc">CopilotKit's agents factory reads those headers and builds a BuiltInAgent closing over exactly this user.</div>
+        <div class="pipeline__file">intelligence.ts</div>
+      </div>
+      <div class="pipeline__arrow"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14m-4-4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="pipeline__step">
+        <div class="pipeline__num">03</div>
+        <div class="pipeline__name">New turn only</div>
+        <div class="pipeline__desc">The bridge sends just the messages after the last assistant turn — history already lives in the checkpoint; resending it would undo summarization.</div>
+        <div class="pipeline__file">newTurnMessages()</div>
+      </div>
+      <div class="pipeline__arrow"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14m-4-4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="pipeline__step">
+        <div class="pipeline__num">04</div>
+        <div class="pipeline__name">Stream + translate</div>
+        <div class="pipeline__desc">graph.streamEvents → AG-UI chunk events. Model-node filter keeps summarization LLM calls off the screen; tool calls and results stream as they happen.</div>
+        <div class="pipeline__file">streamWorkspaceRun()</div>
+      </div>
+      <div class="pipeline__arrow"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14m-4-4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="pipeline__step">
+        <div class="pipeline__num">05</div>
+        <div class="pipeline__name">Snapshot + persist</div>
+        <div class="pipeline__desc">Run closes with a MESSAGES_SNAPSHOT from final engine state; checkpoints and both turns are already in D1 by then.</div>
+        <div class="pipeline__file">SSE · D1 only</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · BRIDGE CODE -->
+  <section class="slide slide--content">
+    <div class="slide__inner" style="grid-template-columns: 2fr 3fr">
+      <div>
+        <p class="slide__label reveal">The core of it</p>
+        <h2 class="slide__heading reveal">~350 lines, three jobs</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><strong>Input:</strong> AG-UI transcript → new-turn LangChain messages + <code>copilotkit</code> state (frontend tools, context)</li>
+          <li class="reveal"><strong>Events:</strong> chunk events only — the AG-UI pipeline opens/closes spans itself, so the bridge tracks no span state</li>
+          <li class="reveal"><strong>Identity:</strong> verified claims go into the run config under the same <code>x-agent-*</code> keys — <em>zero middleware changes</em></li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">agents/workspace-agent/agui-bridge.ts</span>
+<pre><code>const stream = graph.streamEvents(
+  { messages: <span class="g">newTurnMessages</span>(input.messages),
+    ...<span class="g">buildCopilotKitState</span>(input) },
+  { version: <span class="g">'v2'</span>, signal, configurable: {
+      thread_id: input.threadId,
+      <span class="c">// verified Firebase identity, never the client</span>
+      <span class="g">'x-agent-user-id'</span>: user.userId, ... } },
+);
+
+for await (const event of stream) {
+  <span class="c">// on_chat_model_stream @ model_request →</span>
+  <span class="c">//   TEXT_MESSAGE_CHUNK · TOOL_CALL_CHUNK</span>
+  <span class="c">// on_tool_end @ tools → TOOL_CALL_RESULT</span>
+}
+
+<span class="c">// close with engine truth (final message ids)</span>
+yield { type: MESSAGES_SNAPSHOT,
+        messages: <span class="g">toTranscriptMessages</span>(state) };</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · THE ID PROBLEM -->
+  <section class="slide slide--content">
+    <div class="slide__inner" style="grid-template-columns: 1fr">
+      <div>
+        <p class="slide__label reveal">The gotcha we had to solve</p>
+        <h2 class="slide__heading reveal">One message, two ids</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">While streaming, a reply has a <strong>provisional id</strong> (<code>run-…</code>); the engine's final state assigns the real one (<code>resp-…</code>) — and that final id is what the durable transcript records</li>
+          <li class="reveal">Without reconciliation, reopening a thread showed <strong>duplicate bubbles</strong>: the streamed copy and the hydrated copy of the same reply</li>
+          <li class="reveal"><strong>Server side:</strong> every run ends with a <code>MESSAGES_SNAPSHOT</code> built from final engine state — summary and system messages filtered out, ids now match D1</li>
+          <li class="reveal"><strong>Client side:</strong> the thread hydrator remembers every message it has seen, re-adds anything a snapshot dropped, and treats "same role + content, new id" as a <em>rename</em>, not a new message</li>
+          <li class="reveal">Result: full history on screen, compact state in the engine, <strong>zero duplicates</strong> — proven in E2E across restarts</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 · DIVIDER: PERSISTENCE -->
+  <section class="slide slide--divider">
+    <span class="slide__number">03</span>
+    <div style="text-align:center">
+      <h2 class="slide__heading reveal">Persistence</h2>
+      <p class="slide__subtitle reveal">everything durable is a D1 row</p>
+    </div>
+  </section>
+
+  <!-- 12 · MEMORY LAYERS -->
+  <section class="slide">
+    <p class="slide__label reveal">Where conversations live now</p>
+    <h2 class="slide__heading reveal">Three memory layers, one database</h2>
+    <div class="stack-grid reveal">
+      <div class="stack-card">
+        <div class="stack-card__name">Checkpoint</div>
+        <div class="stack-card__role">Engine memory — full graph state per thread. Correctness-critical: a failed write fails the run, never silently forks a conversation. Survives restarts and redeploys.</div>
+        <div class="stack-card__ver">D1 · checkpoints + checkpoint_writes</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-card__name">Transcript</div>
+        <div class="stack-card__role">Product ledger — every user/assistant turn with its engine message id. Sidebar, titles, rename, delete, semantic recall. Best-effort: an outage never breaks chat.</div>
+        <div class="stack-card__ver">D1 · memory_turns + Vectorize</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-card__name">UI replay</div>
+        <div class="stack-card__role">CopilotKit's in-process run cache for instant re-render. Disposable — the hydrator rebuilds the screen from the transcript whenever it's gone.</div>
+        <div class="stack-card__ver">runtime RAM</div>
+      </div>
+    </div>
+    <ul class="slide__bullets reveal" style="margin-top:18px">
+      <li>Summarization (16 messages trigger / keep 8) bounds the prompt; the transcript keeps <strong>everything</strong> — the UI never loses history to compaction</li>
+      <li>Deleting a thread wipes turns, checkpoints, and pending writes <strong>in one place</strong></li>
+    </ul>
+  </section>
+
+  <!-- 13 · D1 CHECKPOINT STORE -->
+  <section class="slide slide--content">
+    <div class="slide__inner" style="grid-template-columns: 2fr 3fr">
+      <div>
+        <p class="slide__label reveal">The new saver</p>
+        <h2 class="slide__heading reveal">Official schema, our store</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Port of LangChain's <strong>official SQLite saver</strong> — same tables, same write semantics, plus a <code>user_id</code> column on everything</li>
+          <li class="reveal">Serialization stays in the agent (real <code>HumanMessage</code>/<code>AIMessage</code> revival); the worker stores <strong>opaque base64</strong></li>
+          <li class="reveal">Writes are atomic via <code>db.batch()</code>; each put <strong>prunes to the latest 20</strong> checkpoints per thread — no cron, no unbounded growth</li>
+          <li class="reveal">No worker configured? Falls back to in-memory checkpoints with a warning — the boilerplate still runs</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">worker · 5 endpoints</span>
+<pre><code>POST /v1/checkpoints/get-tuple
+POST /v1/checkpoints/put          <span class="c">← + prune keep-20</span>
+POST /v1/checkpoints/put-writes   <span class="c">← atomic batch</span>
+POST /v1/checkpoints/list
+POST /v1/checkpoints/delete-thread
+
+<span class="c">-- every query:</span>
+WHERE <span class="g">user_id</span> = ? AND thread_id = ?
+<span class="c">-- wrong user → no rows → no leak</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 · HANDLING / SAFETY -->
+  <section class="slide slide--content">
+    <div class="slide__inner" style="grid-template-columns: 1fr">
+      <div>
+        <p class="slide__label reveal">How failure is handled</p>
+        <h2 class="slide__heading reveal">Two stores, two failure philosophies</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><strong>Checkpoints fail loud</strong> — a swallowed error would silently lose or fork conversation state, so saver errors fail the run and the user sees it</li>
+          <li class="reveal"><strong>Transcript memory fails soft</strong> — retrieval degrades to empty, writes drop with a warning; a chat turn never dies because the ledger hiccuped</li>
+          <li class="reveal"><strong>Identity is server-minted, end to end</strong> — verify → overwrite headers → per-request closure → run config → saver scope + tool headers. The model never chooses whose data it touches</li>
+          <li class="reveal"><strong>Guardrails in the worker</strong> — 2 MB payload guard (D1's hard cap), key-validated metadata filters, Cloudflare Access on every deployed request</li>
+          <li class="reveal"><strong>HITL door stays open</strong> — the bridge runs on the standard AG-UI interrupt protocol; approval flows are an add-on, not a rewrite</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 15 · DIVIDER: STRUCTURE -->
+  <section class="slide slide--divider">
+    <span class="slide__number">04</span>
+    <div style="text-align:center">
+      <h2 class="slide__heading reveal">Structure &amp; workflow</h2>
+      <p class="slide__subtitle reveal">what's where, how we work now</p>
+    </div>
+  </section>
+
+  <!-- 16 · CODEBASE STRUCTURE -->
+  <section class="slide slide--content">
+    <div class="slide__inner" style="grid-template-columns: 1.15fr 1fr; align-items:start">
+      <div class="reveal">
+        <p class="slide__label">monorepo — what changed on disk</p>
+<pre class="dir-tree"><span class="hl">apps/agent</span>               <span class="ann">Hono runtime — now the whole engine</span>
+  src/agents/workspace-agent/
+    graph.ts             <span class="ann">createAgent + D1 checkpointer (lazy)</span>
+    <span class="hl">agui-bridge.ts</span>       <span class="ann">NEW — in-process run + AG-UI events</span>
+  src/config/intelligence.ts  <span class="ann">per-request agents factory</span>
+  src/services/
+    <span class="hl">d1-checkpoint-saver.ts</span>  <span class="ann">NEW — BaseCheckpointSaver over HTTP</span>
+    memory-client.ts     <span class="ann">+ deleteCheckpointThread</span>
+  <span class="ann" style="text-decoration:line-through">Dockerfile.langgraph · docker-compose · langgraph.json</span>
+  <span class="ann" style="text-decoration:line-through">routes/chat · controllers/chat · services/chat*</span>
+
+<span class="hl">apps/memory-worker</span>       <span class="ann">Cloudflare Worker — all durable state</span>
+  src/<span class="hl">checkpoints.ts</span>     <span class="ann">NEW — 5 endpoints, user-scoped, prune</span>
+  src/shared.ts          <span class="ann">NEW — Env + helpers shared by modules</span>
+  migrations/0004_checkpoints.sql
+
+<span class="hl">apps/web</span>
+  components/history/thread-hydrator.tsx  <span class="ann">rewritten — repair loop</span></pre>
+      </div>
+      <div class="reveal">
+        <p class="slide__label">adding an agent — v2</p>
+        <ul class="slide__bullets" style="margin-top:6px">
+          <li><code>agents/&lt;name&gt;/graph.ts</code> — createAgent as before</li>
+          <li>a small bridge (or reuse <code>agui-bridge.ts</code> pattern)</li>
+          <li>register in <code>graphs/registry.ts</code> + <code>intelligence.ts</code></li>
+          <li>no <code>langgraph.json</code>, no image, no redeploy of a second service</li>
+        </ul>
+        <p class="slide__label" style="margin-top:18px">quality gates</p>
+        <ul class="slide__bullets" style="margin-top:6px">
+          <li>34 tests green — saver round-trip (message revival, sentinel writes), bridge input mapping, trusted context</li>
+          <li>E2E in a real browser: streaming, tools, compaction, restart, delete</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 17 · DEV WORKFLOW -->
+  <section class="slide slide--content">
+    <div class="slide__inner" style="grid-template-columns: 2fr 3fr">
+      <div>
+        <p class="slide__label reveal">Daily workflow</p>
+        <h2 class="slide__heading reveal">Three terminals, zero Docker</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Graph code <strong>hot-reloads</strong> with the rest of the agent — edit middleware, save, chat</li>
+          <li class="reveal">D1 is a local SQLite file under wrangler — inspect it with one <code>d1 execute</code> command</li>
+          <li class="reveal">Restart anything, anytime — threads resume from D1, the UI refills from the transcript</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">terminal</span>
+<pre><code>pnpm install
+cp apps/agent/.env.example apps/agent/.env
+cp apps/web/.env.example   apps/web/.env
+
+<span class="c"># agent .env essentials</span>
+<span class="g">OPENAI_API_KEY</span> · <span class="g">FIREBASE_*</span> · <span class="g">ALLOWED_EMAIL_DOMAINS</span>
+<span class="g">API_BASE_URL</span> + <span class="g">API_SERVICE_TOKEN</span>
+<span class="g">MEMORY_WORKER_URL</span>=http://localhost:8788
+
+pnpm dev:agent   <span class="c"># hono + graph, one process :4000</span>
+pnpm dev:web     <span class="c"># chat UI :3000</span>
+pnpm --filter @repo/memory-worker dev
+                 <span class="c"># D1 + checkpoints :8788</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 18 · PROVEN + NEXT -->
+  <section class="slide slide--content">
+    <div class="slide__inner" style="grid-template-columns: 1fr 1fr; align-items:start">
+      <div class="reveal">
+        <p class="slide__label">verified end-to-end</p>
+        <ul class="slide__bullets" style="margin-top:6px">
+          <li>Streaming chat + tool calls through the bridge</li>
+          <li>Engine compacts to a summary; the screen keeps <strong>full history</strong>, no summary bubble, no duplicates</li>
+          <li><strong>Agent restart</strong> → thread reopens complete, facts remembered</li>
+          <li>FE never re-inflates engine state (6 engine msgs vs 12 on screen)</li>
+          <li>Prune holds at 20 checkpoints; cross-user reads return nothing</li>
+          <li>Delete wipes turns + checkpoints + writes</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <p class="slide__label">next steps</p>
+        <ul class="slide__bullets" style="margin-top:6px">
+          <li><strong>1 —</strong> Deploy the worker; measure real D1 latency (est. ~100–200 ms/turn hidden behind model streaming)</li>
+          <li><strong>2 —</strong> <code>resumeAgent</code> with human-in-the-loop — <code>ctx.interrupt()</code> + durable checkpoints are already the right substrate</li>
+          <li><strong>3 —</strong> <code>adminAgent</code>: write operations behind role checks</li>
+          <li><strong>4 —</strong> Semantic recall activates automatically once the worker is deployed (Vectorize + Workers AI)</li>
+          <li><strong>5 —</strong> Scale posture unchanged: agent tier is stateless; all state is D1 rows</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 19 · CLOSING -->
+  <section class="slide slide--title">
+    <div>
+      <h2 class="slide__display reveal" style="font-size:clamp(36px,6vw,72px)">Questions?</h2>
+      <p class="slide__subtitle reveal" style="margin-top:24px">
+        README.md · apps/agent/README.md · docs/trusted-agent-context.md
+      </p>
+      <p class="slide__subtitle reveal" style="margin-top:8px; opacity:0.7">
+        branch feat/agent-runtime-durable-memory
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark'
+    || (!document.documentElement.getAttribute('data-theme')
+        && matchMedia('(prefers-color-scheme: dark)').matches);
+
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    look: 'classic',
+    themeVariables: {
+      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: '16px',
+      primaryColor: dark ? '#1d2b52' : '#f5f0e6',
+      primaryBorderColor: dark ? '#d4a73a' : '#b8860b',
+      primaryTextColor: dark ? '#e8e4d8' : '#1a1814',
+      secondaryColor: dark ? '#162040' : '#ffffff',
+      secondaryBorderColor: dark ? '#9a9484' : '#7a7468',
+      secondaryTextColor: dark ? '#e8e4d8' : '#1a1814',
+      tertiaryColor: dark ? '#111a33' : '#fdfbf6',
+      tertiaryBorderColor: dark ? 'rgba(200,180,140,0.3)' : 'rgba(30,30,50,0.2)',
+      tertiaryTextColor: dark ? '#e8e4d8' : '#1a1814',
+      lineColor: dark ? '#9a9484' : '#7a7468',
+      clusterBkg: dark ? '#111a33' : '#fdfbf6',
+      clusterBorder: dark ? 'rgba(212,167,58,0.35)' : 'rgba(184,134,11,0.35)'
+    }
+  });
+
+  // Simple per-wrap zoom for the diagram slide
+  window.zoomDiagram = function(btn, factor) {
+    const svg = btn.closest('.mermaid-wrap').querySelector('.mermaid');
+    const current = parseFloat(svg.dataset.zoom || '1') * factor;
+    svg.dataset.zoom = current;
+    svg.style.transform = 'scale(' + current + ')';
+  };
+  window.resetZoom = function(btn) {
+    const svg = btn.closest('.mermaid-wrap').querySelector('.mermaid');
+    svg.dataset.zoom = '1';
+    svg.style.transform = '';
+  };
+
+  function autoFit() {
+    document.querySelectorAll('.mermaid svg').forEach(function(svg) {
+      svg.removeAttribute('height');
+      svg.style.width = '100%';
+      svg.style.maxWidth = '100%';
+      svg.style.height = 'auto';
+    });
+  }
+
+  class SlideEngine {
+    constructor() {
+      this.deck = document.querySelector('.deck');
+      this.slides = [...document.querySelectorAll('.slide')];
+      this.current = 0;
+      this.total = this.slides.length;
+      this.buildChrome();
+      this.bindEvents();
+      this.observe();
+      this.update();
+    }
+    buildChrome() {
+      const bar = document.createElement('div');
+      bar.className = 'deck-progress';
+      document.body.appendChild(bar);
+      this.bar = bar;
+
+      const dots = document.createElement('div');
+      dots.className = 'deck-dots';
+      this.slides.forEach((_, i) => {
+        const d = document.createElement('button');
+        d.className = 'deck-dot';
+        d.title = 'Slide ' + (i + 1);
+        d.onclick = () => this.goTo(i);
+        dots.appendChild(d);
+      });
+      document.body.appendChild(dots);
+      this.dots = [...dots.children];
+
+      const ctr = document.createElement('div');
+      ctr.className = 'deck-counter';
+      document.body.appendChild(ctr);
+      this.counter = ctr;
+
+      const hints = document.createElement('div');
+      hints.className = 'deck-hints';
+      hints.textContent = '← → or scroll to navigate';
+      document.body.appendChild(hints);
+      this.hints = hints;
+      this.hintTimer = setTimeout(() => hints.classList.add('faded'), 4000);
+    }
+    bindEvents() {
+      document.addEventListener('keydown', (e) => {
+        if (e.target.closest('.mermaid-wrap, input, textarea, [contenteditable]')) return;
+        if (['ArrowDown', 'ArrowRight', ' ', 'PageDown'].includes(e.key)) {
+          e.preventDefault(); this.next();
+        } else if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.key)) {
+          e.preventDefault(); this.prev();
+        } else if (e.key === 'Home') { e.preventDefault(); this.goTo(0); }
+        else if (e.key === 'End') { e.preventDefault(); this.goTo(this.total - 1); }
+        this.fadeHints();
+      });
+      let touchY;
+      this.deck.addEventListener('touchstart', (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+      this.deck.addEventListener('touchend', (e) => {
+        const dy = touchY - e.changedTouches[0].clientY;
+        if (Math.abs(dy) > 50) { dy > 0 ? this.next() : this.prev(); }
+      });
+    }
+    observe() {
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            this.current = this.slides.indexOf(entry.target);
+            this.update();
+          }
+        });
+      }, { threshold: 0.5 });
+      this.slides.forEach((s) => obs.observe(s));
+    }
+    goTo(i) {
+      this.slides[Math.max(0, Math.min(i, this.total - 1))].scrollIntoView({ behavior: 'smooth' });
+    }
+    next() { if (this.current < this.total - 1) this.goTo(this.current + 1); }
+    prev() { if (this.current > 0) this.goTo(this.current - 1); }
+    update() {
+      this.bar.style.width = ((this.current + 1) / this.total * 100) + '%';
+      this.dots.forEach((d, i) => d.classList.toggle('active', i === this.current));
+      this.counter.textContent = (this.current + 1) + ' / ' + this.total;
+    }
+    fadeHints() {
+      clearTimeout(this.hintTimer);
+      this.hints.classList.add('faded');
+    }
+  }
+
+  await mermaid.run();
+  autoFit();
+  new SlideEngine();
+</script>
+</body>
+</html>

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Runtime — So sánh 4 phương án</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ THEME — Midnight Editorial ============ */
+  :root {
+    --font-body: 'Instrument Serif', Georgia, serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+    --bg: #0f1729;
+    --surface: #162040;
+    --surface2: #1d2b52;
+    --border: rgba(200, 180, 140, 0.1);
+    --border-bright: rgba(200, 180, 140, 0.2);
+    --text: #e8e4d8;
+    --text-dim: #9a9484;
+    --accent: #d4a73a;
+    --accent-dim: rgba(212, 167, 58, 0.1);
+    --green: #7fb069;
+    --red: #c76a6a;
+    --code-bg: #0a0f1e;
+    --code-text: #d4d0c4;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #faf8f2; --surface: #ffffff; --surface2: #f5f0e6;
+      --border: rgba(30, 30, 50, 0.09); --border-bright: rgba(30, 30, 50, 0.18);
+      --text: #1a1814; --text-dim: #7a7468;
+      --accent: #b8860b; --accent-dim: rgba(184, 134, 11, 0.08);
+      --green: #4d7c0f; --red: #b91c1c;
+      --code-bg: #2a2520; --code-text: #e8e4d8;
+    }
+  }
+  [data-theme="light"] {
+    --bg: #faf8f2; --surface: #ffffff; --surface2: #f5f0e6;
+    --border: rgba(30, 30, 50, 0.09); --border-bright: rgba(30, 30, 50, 0.18);
+    --text: #1a1814; --text-dim: #7a7468;
+    --accent: #b8860b; --accent-dim: rgba(184, 134, 11, 0.08);
+    --green: #4d7c0f; --red: #b91c1c;
+    --code-bg: #2a2520; --code-text: #e8e4d8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); overflow: hidden; }
+
+  .theme-toggle {
+    position: fixed; top: 16px; right: 16px; z-index: 300;
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: background 0.15s, color 0.15s;
+  }
+  .theme-toggle:hover { background: var(--surface2); color: var(--text); }
+
+  .deck { height: 100dvh; overflow-y: auto; scroll-snap-type: y mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+  .slide {
+    height: 100dvh; scroll-snap-align: start; overflow: hidden; position: relative;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: clamp(40px, 6vh, 80px) clamp(40px, 8vw, 120px);
+    isolation: isolate; opacity: 0; transform: translateY(40px) scale(0.98);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .slide.visible { opacity: 1; transform: none; }
+  .slide .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+  .slide.visible .reveal { opacity: 1; transform: none; }
+  .slide.visible .reveal:nth-child(1) { transition-delay: 0.1s; }
+  .slide.visible .reveal:nth-child(2) { transition-delay: 0.2s; }
+  .slide.visible .reveal:nth-child(3) { transition-delay: 0.3s; }
+  .slide.visible .reveal:nth-child(4) { transition-delay: 0.4s; }
+  .slide.visible .reveal:nth-child(5) { transition-delay: 0.5s; }
+  .slide.visible .reveal:nth-child(6) { transition-delay: 0.6s; }
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .slide .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  }
+
+  .slide:nth-child(odd)  { background-image: radial-gradient(ellipse at 18% 85%, var(--accent-dim) 0%, transparent 55%); }
+  .slide:nth-child(even) { background-image: radial-gradient(ellipse at 82% 15%, var(--accent-dim) 0%, transparent 55%); }
+
+  .slide__display { font-size: clamp(44px, 8.5vw, 100px); font-weight: 400; letter-spacing: -1px; line-height: 1.0; text-wrap: balance; }
+  .slide__heading { font-size: clamp(26px, 4.2vw, 42px); font-weight: 400; letter-spacing: -0.5px; line-height: 1.1; text-wrap: balance; margin-bottom: clamp(12px, 2.5vh, 26px); }
+  .slide__label { font-family: var(--font-mono); font-size: clamp(10px, 1.2vw, 13px); font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: clamp(8px, 1.5vh, 14px); }
+  .slide__subtitle { font-family: var(--font-mono); font-size: clamp(13px, 1.7vw, 18px); color: var(--text-dim); letter-spacing: 0.5px; }
+  em { color: var(--accent); font-style: italic; }
+
+  .slide--title { justify-content: center; align-items: center; text-align: center; }
+
+  .slide--content .slide__inner { display: grid; grid-template-columns: 3fr 2fr; gap: clamp(24px, 4vw, 60px); align-items: center; width: 100%; }
+  .slide--content .slide__inner > * { min-width: 0; }
+  .slide__bullets { list-style: none; }
+  .slide__bullets li { padding: clamp(6px, 1.2vh, 12px) 0 clamp(6px, 1.2vh, 12px) 24px; position: relative; font-size: clamp(15px, 1.9vw, 21px); line-height: 1.55; color: var(--text-dim); overflow-wrap: break-word; }
+  .slide__bullets li::before { content: ''; position: absolute; left: 0; top: clamp(16px, 2.2vh, 22px); width: 7px; height: 7px; transform: rotate(45deg); background: var(--accent); }
+  .slide__bullets strong { color: var(--text); font-weight: 400; }
+  .slide__bullets code, .slide__body code, td code, .verdict code {
+    font-family: var(--font-mono); font-size: 0.72em; background: var(--accent-dim);
+    color: var(--accent); padding: 2px 7px; border-radius: 4px;
+  }
+
+  /* ============ OPTION BADGES / VERDICT ============ */
+  .verdict {
+    margin-top: clamp(10px, 2vh, 20px);
+    font-family: var(--font-mono); font-size: clamp(12px, 1.4vw, 15px);
+    padding: clamp(10px, 1.8vh, 16px) clamp(14px, 1.8vw, 22px);
+    border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-dim); line-height: 1.6;
+  }
+  .verdict--good { border-left: 4px solid var(--green); }
+  .verdict--bad { border-left: 4px solid var(--red); }
+  .verdict--warn { border-left: 4px solid var(--accent); }
+  .verdict strong { color: var(--text); font-weight: 400; }
+
+  /* ============ PROS / CONS ============ */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(14px, 2vw, 28px); margin-top: clamp(12px, 2vh, 24px); }
+  .compare__col { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: clamp(16px, 2.6vh, 28px) clamp(16px, 2vw, 26px); min-width: 0; }
+  .compare__col--old { border-top: 3px solid var(--red); }
+  .compare__col--new { border-top: 3px solid var(--green); }
+  .compare__title { font-family: var(--font-mono); font-size: clamp(11px, 1.2vw, 13px); font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: clamp(8px, 1.4vh, 14px); }
+  .compare__col--old .compare__title { color: var(--red); }
+  .compare__col--new .compare__title { color: var(--green); }
+  .compare__col ul { list-style: none; }
+  .compare__col li { font-family: var(--font-mono); font-size: clamp(11px, 1.25vw, 15px); color: var(--text-dim); line-height: 1.6; padding: clamp(4px, 0.8vh, 8px) 0; border-bottom: 1px dashed var(--border); }
+  .compare__col li:last-child { border-bottom: none; }
+  .compare__col strong { color: var(--text); font-weight: 400; }
+
+  /* ============ CHAIN (pipeline) ============ */
+  .pipeline { display: flex; align-items: stretch; margin-top: clamp(12px, 2vh, 24px); }
+  .pipeline__step { flex: 1; background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 10px; padding: clamp(12px, 2.2vh, 22px) clamp(10px, 1.3vw, 18px); display: flex; flex-direction: column; min-width: 0; overflow-wrap: break-word; }
+  .pipeline__num { font-family: var(--font-mono); font-size: clamp(9px, 1vw, 11px); font-weight: 600; color: var(--accent); letter-spacing: 1px; }
+  .pipeline__name { font-size: clamp(15px, 1.8vw, 21px); margin: clamp(4px, 0.8vh, 8px) 0; }
+  .pipeline__desc { font-family: var(--font-mono); font-size: clamp(10px, 1.1vw, 13px); color: var(--text-dim); line-height: 1.55; flex: 1; }
+  .pipeline__file { font-family: var(--font-mono); font-size: clamp(9px, 1vw, 11px); color: var(--accent); background: var(--accent-dim); padding: 3px 8px; border-radius: 4px; margin-top: clamp(8px, 1.5vh, 14px); align-self: flex-start; }
+  .pipeline__arrow { display: flex; align-items: center; padding: 0 clamp(3px, 0.4vw, 6px); color: var(--accent); flex-shrink: 0; opacity: 0.45; }
+
+  /* ============ CODE ============ */
+  .slide__code-block { background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px; padding: clamp(18px, 3vh, 34px) clamp(18px, 2.6vw, 34px); position: relative; width: 100%; }
+  .slide__code-filename { position: absolute; top: -12px; left: 24px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 4px; background: var(--accent); color: var(--code-bg); }
+  .slide__code-block pre { margin: 0; overflow-x: auto; }
+  .slide__code-block code { font-family: var(--font-mono); font-size: clamp(12px, 1.4vw, 16px); line-height: 1.7; color: var(--code-text); white-space: pre; background: none; padding: 0; }
+  .slide__code-block .c { color: #7a8494; }
+  .slide__code-block .g { color: #d4a73a; }
+  .slide__code-block .r { color: #c76a6a; }
+
+  /* ============ MATRIX TABLE ============ */
+  .matrix-wrap { overflow-x: auto; margin-top: clamp(10px, 2vh, 20px); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+  table.matrix { width: 100%; border-collapse: collapse; font-family: var(--font-mono); }
+  .matrix th, .matrix td { padding: clamp(8px, 1.4vh, 13px) clamp(10px, 1.2vw, 16px); text-align: left; font-size: clamp(10px, 1.15vw, 14px); border-bottom: 1px dashed var(--border); vertical-align: top; line-height: 1.45; }
+  .matrix thead th { color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: clamp(9px, 1vw, 12px); border-bottom: 1px solid var(--border-bright); }
+  .matrix tbody tr:last-child td { border-bottom: none; }
+  .matrix td:first-child { color: var(--text); white-space: nowrap; }
+  .matrix td { color: var(--text-dim); }
+  .matrix .good { color: var(--green); }
+  .matrix .bad { color: var(--red); }
+  .matrix .warn { color: var(--accent); }
+  .matrix .col-hl { background: var(--accent-dim); }
+
+  /* ============ TRIANGLE SVG slide ============ */
+  .center-figure { display: flex; justify-content: center; margin-top: clamp(10px, 2vh, 20px); }
+
+  /* ============ NAV CHROME ============ */
+  .deck-progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); z-index: 100; transition: width 0.3s ease; pointer-events: none; }
+  .deck-dots { position: fixed; right: clamp(12px, 2vw, 24px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 100; }
+  .deck-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); opacity: 0.3; border: none; padding: 0; cursor: pointer; transition: opacity 0.2s ease, transform 0.2s ease; }
+  .deck-dot:hover { opacity: 0.6; }
+  .deck-dot.active { opacity: 1; transform: scale(1.5); background: var(--accent); }
+  .deck-counter { position: fixed; bottom: clamp(12px, 2vh, 24px); right: clamp(12px, 2vw, 24px); font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); z-index: 100; font-variant-numeric: tabular-nums; }
+  .deck-hints { position: fixed; bottom: clamp(12px, 2vh, 24px); left: 50%; transform: translateX(-50%); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); opacity: 0.6; z-index: 100; transition: opacity 0.5s ease; white-space: nowrap; }
+  .deck-hints.faded { opacity: 0; pointer-events: none; }
+
+  .slide__decor { position: absolute; pointer-events: none; z-index: 0; }
+  .slide__decor--corner { top: 0; right: 0; }
+
+  @media (max-height: 700px) {
+    .slide { padding: clamp(24px, 4vh, 40px) clamp(32px, 6vw, 80px); }
+    .slide__display { font-size: clamp(32px, 7vw, 64px); }
+  }
+  @media (max-height: 500px) { .deck-dots { display: none; } .slide__decor { display: none; } }
+  @media (max-width: 768px) {
+    .slide--content .slide__inner { grid-template-columns: 1fr; }
+    .pipeline { flex-direction: column; }
+    .pipeline__arrow { justify-content: center; padding: 4px 0; transform: rotate(90deg); }
+    .compare { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark theme"></button>
+<script>
+(function() {
+  var t = document.getElementById('themeToggle');
+  var s = localStorage.getItem('deck-theme');
+  var prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  var i = s || (prefersDark ? 'dark' : 'light');
+  if (s) document.documentElement.setAttribute('data-theme', i);
+  t.textContent = i === 'dark' ? '☀' : '☾';
+  t.addEventListener('click', function() {
+    var c = document.documentElement.getAttribute('data-theme') || (prefersDark ? 'dark' : 'light');
+    var n = c === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', n);
+    localStorage.setItem('deck-theme', n);
+    t.textContent = n === 'dark' ? '☀' : '☾';
+  });
+})();
+</script>
+
+<div class="deck">
+
+  <!-- 1 · TITLE -->
+  <section class="slide slide--title">
+    <svg class="slide__decor slide__decor--corner" width="140" height="140" viewBox="0 0 140 140">
+      <line x1="140" y1="0" x2="140" y2="52" stroke="var(--accent)" stroke-width="2" opacity="0.25"/>
+      <line x1="88" y1="0" x2="140" y2="0" stroke="var(--accent)" stroke-width="2" opacity="0.25"/>
+    </svg>
+    <div>
+      <p class="slide__label reveal">Kiến trúc Agent Runtime · Tháng 7/2026</p>
+      <h1 class="slide__display reveal">Bốn con đường,<br>một lựa chọn</h1>
+      <p class="slide__subtitle reveal" style="margin-top:24px">
+        LangGraph Server · Server + Postgres · AG-UI Bridge · Embed + D1
+      </p>
+    </div>
+  </section>
+
+  <!-- 2 · TAM GIÁC -->
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Bài toán gốc</p>
+        <h2 class="slide__heading reveal">Ba mong muốn — chỉ chọn được hai</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><strong>Dùng LangGraph server chuẩn</strong> — API threads/runs chính thống, adapter có sẵn</li>
+          <li class="reveal"><strong>Không nuôi bridge tự viết</strong> — phần dịch AG-UI nằm trong thư viện, không phải code mình</li>
+          <li class="reveal"><strong>Checkpoint trên D1</strong> — một database duy nhất cho mọi state, đã có memory worker</li>
+          <li class="reveal">Server chính thống <strong>ghi đè checkpointer</strong> vô điều kiện → D1 và server chuẩn loại trừ nhau</li>
+        </ul>
+      </div>
+      <div class="reveal center-figure">
+        <svg width="100%" height="260" viewBox="0 0 320 260" style="max-width:320px">
+          <polygon points="160,30 40,220 280,220" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.5"/>
+          <circle cx="160" cy="30" r="6" fill="var(--accent)"/>
+          <text x="160" y="14" text-anchor="middle" fill="var(--text)" font-family="var(--font-mono)" font-size="11">LangGraph server</text>
+          <circle cx="40" cy="220" r="6" fill="var(--accent)"/>
+          <text x="52" y="245" text-anchor="middle" fill="var(--text)" font-family="var(--font-mono)" font-size="11">Không bridge</text>
+          <circle cx="280" cy="220" r="6" fill="var(--accent)"/>
+          <text x="264" y="245" text-anchor="middle" fill="var(--text)" font-family="var(--font-mono)" font-size="11">Checkpoint D1</text>
+          <text x="160" y="150" text-anchor="middle" fill="var(--red)" font-family="var(--font-mono)" font-size="13">chọn 2 / 3</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · OPTION 1: SERVER MẶC ĐỊNH -->
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Phương án 1 · langgraphjs dev / Agent Server</p>
+        <h2 class="slide__heading reveal">LangGraph Server mặc định</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><strong>Zero code dịch AG-UI</strong> — CopilotKit có adapter <code>LangGraphAgent</code> sẵn</li>
+          <li class="reveal"><strong>Nhưng D1 không có cửa</strong> — server gán đè checkpointer khi load graph, không config nào can thiệp được</li>
+          <li class="reveal">Bản JS (<code>langgraphjs dev</code>) là <strong>dev-only</strong>: queue trong RAM, 1 instance, không auth</li>
+          <li class="reveal">Bản production (Agent Server) là <strong>container Python đóng nguồn</strong> — không patch được</li>
+        </ul>
+        <div class="verdict verdict--bad reveal"><strong>Loại</strong> — trừ khi từ bỏ hoàn toàn D1 cho checkpoint. Docs: “Do not configure these in your graph code.”</div>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <div class="slide__code-filename">langgraph-api · graph/load.mts</div>
+          <pre><code><span class="c">// Server load graph — ghi đè vô điều kiện:</span>
+if (options?.checkpointer !== undefined) {
+  compiled.checkpointer =
+    options?.checkpointer ?? undefined;
+} else {
+  <span class="r">compiled.checkpointer = checkpointer;</span>
+  <span class="c">// ^ saver nội bộ của server,</span>
+  <span class="c">//   D1CheckpointSaver bị thay thế</span>
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · OPTION 2: SERVER + POSTGRES -->
+  <section class="slide">
+    <p class="slide__label reveal">Phương án 2 · Agent Server production</p>
+    <h2 class="slide__heading reveal">Server + Postgres — chính thống, nhưng rời D1</h2>
+    <div class="compare reveal">
+      <div class="compare__col compare__col--new">
+        <div class="compare__title">Được gì</div>
+        <ul>
+          <li><strong>Zero custom code</strong> runtime — bridge xoá, adapter thư viện lo AG-UI</li>
+          <li>Kiến trúc được LangChain <strong>hỗ trợ chính thức</strong>, ổn định theo semver</li>
+          <li>API threads/runs/crons đầy đủ + LangGraph Studio</li>
+          <li>Transcript/durable memory <strong>vẫn giữ được ở D1</strong> (nằm ngoài checkpointer)</li>
+        </ul>
+      </div>
+      <div class="compare__col compare__col--old">
+        <div class="compare__title">Mất gì</div>
+        <ul>
+          <li><strong>Checkpoint rời D1</strong> → Postgres do server quản (đảo quyết định D1 của team)</li>
+          <li>Thêm <strong>1 service + 1 database</strong> phải deploy & vận hành</li>
+          <li>State tách 2 engine: checkpoint Postgres · transcript D1 — delete phải đuổi cả hai</li>
+          <li>Auth phải làm lại theo cơ chế custom-auth của server</li>
+        </ul>
+      </div>
+    </div>
+    <div class="verdict verdict--warn reveal"><strong>Chọn khi</strong> “không bridge” là ưu tiên số 1 và team chấp nhận bỏ D1 cho checkpoint.</div>
+  </section>
+
+  <!-- 5 · OPTION 3: BRIDGE HIỆN TẠI -->
+  <section class="slide">
+    <p class="slide__label reveal">Phương án 3 · Hiện tại (v2)</p>
+    <h2 class="slide__heading reveal">AG-UI Bridge in-process + D1</h2>
+    <div class="compare reveal">
+      <div class="compare__col compare__col--new">
+        <div class="compare__title">Được gì</div>
+        <ul>
+          <li><strong>D1 cho mọi thứ</strong> — checkpoint + transcript một database</li>
+          <li><strong>Ít tầng nhất</strong>: 1 process agent + worker, không service phụ</li>
+          <li>Đã chạy, <strong>đã có test</strong>, multi-tenant theo user Firebase</li>
+          <li>Không phụ thuộc API experimental hay internal của ai</li>
+        </ul>
+      </div>
+      <div class="compare__col compare__col--old">
+        <div class="compare__title">Mất gì</div>
+        <ul>
+          <li><strong>~360 dòng bridge tự nuôi</strong> (<code>agui-bridge.ts</code>) — dịch event LangGraph → AG-UI</li>
+          <li>Lệch chuẩn: không có API threads/runs kiểu LangGraph platform</li>
+          <li>Mỗi nâng cấp CopilotKit/LangGraph phải tự kiểm tra lại bridge</li>
+        </ul>
+      </div>
+    </div>
+    <div class="verdict verdict--good reveal"><strong>Baseline an toàn</strong> — phương án ít rủi ro nhất thỏa mãn D1; chi phí duy nhất là sở hữu code dịch.</div>
+  </section>
+
+  <!-- 6 · OPTION 4: EMBED + D1 -->
+  <section class="slide">
+    <p class="slide__label reveal">Phương án 4 · PoC đã pass 21/07</p>
+    <h2 class="slide__heading reveal">Embed Server + D1 — bỏ bridge, giữ D1</h2>
+    <div class="pipeline reveal">
+      <div class="pipeline__step">
+        <div class="pipeline__num">FRONTEND</div>
+        <div class="pipeline__name">CopilotKit React</div>
+        <div class="pipeline__desc">Không đổi gì — vẫn nói AG-UI với runtime.</div>
+      </div>
+      <div class="pipeline__arrow"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14m-4-4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="pipeline__step">
+        <div class="pipeline__num">THƯ VIỆN</div>
+        <div class="pipeline__name">LangGraphAgent</div>
+        <div class="pipeline__desc">Adapter <code>@ag-ui/langgraph</code> dịch AG-UI — thay thế bridge tự viết.</div>
+        <div class="pipeline__file">0 dòng code mình</div>
+      </div>
+      <div class="pipeline__arrow"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14m-4-4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="pipeline__step" style="border-top-width:4px">
+        <div class="pipeline__num">EXPERIMENTAL</div>
+        <div class="pipeline__name">createEmbedServer</div>
+        <div class="pipeline__desc">Route threads/runs chuẩn LangGraph, <strong>nhận checkpointer của mình</strong>. Kèm shim assistants ~30 dòng.</div>
+        <div class="pipeline__file">@langchain/langgraph-api</div>
+      </div>
+      <div class="pipeline__arrow"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M5 12h14m-4-4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="pipeline__step">
+        <div class="pipeline__num">STORAGE</div>
+        <div class="pipeline__name">D1CheckpointSaver</div>
+        <div class="pipeline__desc">Giữ nguyên class hiện tại → memory worker → D1. Thêm ThreadSaver D1 (~150–300 dòng).</div>
+        <div class="pipeline__file">giữ nguyên</div>
+      </div>
+    </div>
+    <div class="verdict verdict--warn reveal" style="margin-top:clamp(14px,2.4vh,26px)"><strong>Đổi rủi ro lấy chuẩn hóa</strong> — API gắn nhãn <code>@experimental, không theo semver</code>: pin version, PoC scripts làm regression test khi nâng cấp. HITL/frontend tools chưa kiểm chứng.</div>
+  </section>
+
+  <!-- 7 · POC EVIDENCE -->
+  <section class="slide slide--content">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">Bằng chứng, không phỏng đoán</p>
+        <h2 class="slide__heading reveal">PoC 2 bước — đều pass ngay</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><strong>Bước 1</strong> — client HTTP thuần → embed server → graph thật → D1: tạo thread, stream run, đọc lại state, nhớ xuyên run</li>
+          <li class="reveal"><strong>Bước 2</strong> — CopilotKit runtime + <code>LangGraphAgent</code> thay bridge: đủ chuỗi event AG-UI thật (<code>TEXT_MESSAGE_*</code>, <code>MESSAGES_SNAPSHOT</code>…)</li>
+          <li class="reveal"><strong>D1 xác minh</strong>: 18 checkpoint rows, đúng <code>user_id</code>, đúng thread — multi-tenant scoping hoạt động</li>
+          <li class="reveal">2 vướng mắc gặp phải đều giải bằng <strong>shim ~30 dòng</strong> (embed thiếu route <code>/assistants/*</code>; adapter đòi <code>assistant.config</code> là object)</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <div class="slide__code-filename">copilotkit-client-poc.ts · output</div>
+          <pre><code>PASS run-1-assistant-reply
+     <span class="g">"Teal is a lovely color."</span>
+PASS run-1-streamed-text-events
+     RUN_STARTED, STATE_SNAPSHOT,
+     TEXT_MESSAGE_START/CONTENT/END,
+     MESSAGES_SNAPSHOT, RUN_FINISHED
+PASS cross-run-memory-via-d1
+     <span class="g">"teal"</span>
+
+<span class="c">D1: 18 checkpoints · poc-embed-user</span>
+ALL CHECKS PASSED</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · MATRIX -->
+  <section class="slide">
+    <p class="slide__label reveal">Đặt cạnh nhau</p>
+    <h2 class="slide__heading reveal">Bảng so sánh tổng hợp</h2>
+    <div class="matrix-wrap reveal">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th></th>
+            <th>1 · Server mặc định</th>
+            <th>2 · Server + Postgres</th>
+            <th class="col-hl">3 · Bridge + D1 (hiện tại)</th>
+            <th>4 · Embed + D1 (PoC ✓)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Checkpoint trên D1</td><td class="bad">✗ bị ghi đè</td><td class="bad">✗ Postgres</td><td class="good col-hl">✓</td><td class="good">✓</td></tr>
+          <tr><td>Bridge AG-UI tự viết</td><td class="good">Không</td><td class="good">Không</td><td class="bad col-hl">~360 dòng</td><td class="good">Không (adapter lib)</td></tr>
+          <tr><td>Code tự maintain</td><td class="good">~0</td><td class="good">~0</td><td class="warn col-hl">bridge + saver</td><td class="warn">shim 30 + ThreadSaver ~200 + saver</td></tr>
+          <tr><td>Service phải chạy</td><td class="warn">+server</td><td class="bad">+server +Postgres</td><td class="good col-hl">không thêm</td><td class="good">không thêm (nhúng vào BFF)</td></tr>
+          <tr><td>Độ ổn định API</td><td class="good">chính thống</td><td class="good">chính thống, semver</td><td class="good col-hl">API public ổn định</td><td class="bad">@experimental, không semver</td></tr>
+          <tr><td>Sẵn sàng production</td><td class="bad">dev-only (JS)</td><td class="good">✓</td><td class="good col-hl">✓ đang chạy + test</td><td class="warn">cần ThreadSaver, auth, HITL check</td></tr>
+          <tr><td>API threads/runs chuẩn</td><td class="good">✓</td><td class="good">✓</td><td class="bad col-hl">✗</td><td class="good">✓ (subset)</td></tr>
+          <tr><td>Effort từ hiện tại</td><td class="bad">không khả thi với D1</td><td class="warn">migrate checkpoint + auth</td><td class="good col-hl">0</td><td class="warn">~1 tuần: saver giữ nguyên, thêm ThreadSaver + auth + HITL</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 9 · KHUYẾN NGHỊ -->
+  <section class="slide">
+    <p class="slide__label reveal">Chốt</p>
+    <h2 class="slide__heading reveal">Chọn theo thứ bạn không muốn từ bỏ</h2>
+    <ul class="slide__bullets">
+      <li class="reveal">Ưu tiên <strong>ổn định, không đụng gì</strong> → giữ <em>Phương án 3</em> (bridge + D1). Chi phí duy nhất: sở hữu 360 dòng đã có test.</li>
+      <li class="reveal">Yêu cầu cứng <strong>“không bridge” + giữ D1</strong> → <em>Phương án 4</em>. PoC đã chứng minh chạy thật; đổi lại sống cùng API experimental (pin version + regression test) và làm nốt ThreadSaver, auth, HITL.</li>
+      <li class="reveal">Sẵn sàng <strong>bỏ D1 cho checkpoint</strong> → <em>Phương án 2</em>, kiến trúc chính thống ít code nhất; transcript vẫn ở D1.</li>
+      <li class="reveal"><em>Phương án 1</em> chỉ tồn tại làm <strong>dev tool</strong> — chính là <code>pnpm studio</code> hôm nay, không phải lựa chọn production.</li>
+    </ul>
+    <div class="verdict verdict--good reveal"><strong>Đề xuất:</strong> quyết định giữa 3 và 4 sau khi PoC bước 3 (HITL / frontend tools) — đó là ẩn số cuối cùng còn lại của phương án 4.</div>
+  </section>
+
+</div>
+
+<script>
+  class SlideEngine {
+    constructor() {
+      this.deck = document.querySelector('.deck');
+      this.slides = [...document.querySelectorAll('.slide')];
+      this.current = 0;
+      this.total = this.slides.length;
+      this.buildChrome();
+      this.bindEvents();
+      this.observe();
+      this.update();
+    }
+    buildChrome() {
+      const bar = document.createElement('div');
+      bar.className = 'deck-progress';
+      document.body.appendChild(bar);
+      this.bar = bar;
+      const dots = document.createElement('div');
+      dots.className = 'deck-dots';
+      this.slides.forEach((_, i) => {
+        const d = document.createElement('button');
+        d.className = 'deck-dot';
+        d.title = 'Slide ' + (i + 1);
+        d.onclick = () => this.goTo(i);
+        dots.appendChild(d);
+      });
+      document.body.appendChild(dots);
+      this.dots = [...dots.children];
+      const ctr = document.createElement('div');
+      ctr.className = 'deck-counter';
+      document.body.appendChild(ctr);
+      this.counter = ctr;
+      const hints = document.createElement('div');
+      hints.className = 'deck-hints';
+      hints.textContent = '← → hoặc cuộn để chuyển slide';
+      document.body.appendChild(hints);
+      this.hints = hints;
+      this.hintTimer = setTimeout(() => hints.classList.add('faded'), 4000);
+    }
+    bindEvents() {
+      document.addEventListener('keydown', (e) => {
+        if (e.target.closest('input, textarea, [contenteditable]')) return;
+        if (['ArrowDown', 'ArrowRight', ' ', 'PageDown'].includes(e.key)) { e.preventDefault(); this.next(); }
+        else if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); this.prev(); }
+        else if (e.key === 'Home') { e.preventDefault(); this.goTo(0); }
+        else if (e.key === 'End') { e.preventDefault(); this.goTo(this.total - 1); }
+        this.fadeHints();
+      });
+      let touchY;
+      this.deck.addEventListener('touchstart', (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+      this.deck.addEventListener('touchend', (e) => {
+        const dy = touchY - e.changedTouches[0].clientY;
+        if (Math.abs(dy) > 50) { dy > 0 ? this.next() : this.prev(); }
+      });
+    }
+    observe() {
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            this.current = this.slides.indexOf(entry.target);
+            this.update();
+          }
+        });
+      }, { threshold: 0.5 });
+      this.slides.forEach((s) => obs.observe(s));
+    }
+    goTo(i) { this.slides[Math.max(0, Math.min(i, this.total - 1))].scrollIntoView({ behavior: 'smooth' }); }
+    next() { if (this.current < this.total - 1) this.goTo(this.current + 1); }
+    prev() { if (this.current > 0) this.goTo(this.current - 1); }
+    update() {
+      this.bar.style.width = ((this.current + 1) / this.total * 100) + '%';
+      this.dots.forEach((d, i) => d.classList.toggle('active', i === this.current));
+      this.counter.textContent = (this.current + 1) + ' / ' + this.total;
+    }
+    fadeHints() { clearTimeout(this.hintTimer); this.hints.classList.add('faded'); }
+  }
+  new SlideEngine();
+</script>
+</body>
+</html>

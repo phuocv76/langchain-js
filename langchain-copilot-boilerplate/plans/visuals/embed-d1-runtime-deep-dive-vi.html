@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embed Runtime + D1 — Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* ============ THEME — Midnight Editorial ============ */
+  :root {
+    --font-body: 'Instrument Serif', Georgia, serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+    --bg: #0f1729;
+    --surface: #162040;
+    --surface2: #1d2b52;
+    --border: rgba(200, 180, 140, 0.1);
+    --border-bright: rgba(200, 180, 140, 0.2);
+    --text: #e8e4d8;
+    --text-dim: #9a9484;
+    --accent: #d4a73a;
+    --accent-dim: rgba(212, 167, 58, 0.1);
+    --green: #7fb069;
+    --red: #c76a6a;
+    --code-bg: #0a0f1e;
+    --code-text: #d4d0c4;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #faf8f2; --surface: #ffffff; --surface2: #f5f0e6;
+      --border: rgba(30, 30, 50, 0.09); --border-bright: rgba(30, 30, 50, 0.18);
+      --text: #1a1814; --text-dim: #7a7468;
+      --accent: #b8860b; --accent-dim: rgba(184, 134, 11, 0.08);
+      --green: #4d7c0f; --red: #b91c1c;
+      --code-bg: #2a2520; --code-text: #e8e4d8;
+    }
+  }
+  [data-theme="light"] {
+    --bg: #faf8f2; --surface: #ffffff; --surface2: #f5f0e6;
+    --border: rgba(30, 30, 50, 0.09); --border-bright: rgba(30, 30, 50, 0.18);
+    --text: #1a1814; --text-dim: #7a7468;
+    --accent: #b8860b; --accent-dim: rgba(184, 134, 11, 0.08);
+    --green: #4d7c0f; --red: #b91c1c;
+    --code-bg: #2a2520; --code-text: #e8e4d8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); overflow: hidden; }
+
+  .theme-toggle {
+    position: fixed; top: 16px; right: 16px; z-index: 300;
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; transition: background 0.15s, color 0.15s;
+  }
+  .theme-toggle:hover { background: var(--surface2); color: var(--text); }
+
+  .deck { height: 100dvh; overflow-y: auto; scroll-snap-type: y mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+  .slide {
+    height: 100dvh; scroll-snap-align: start; overflow: hidden; position: relative;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: clamp(36px, 5vh, 70px) clamp(36px, 7vw, 110px);
+    isolation: isolate; opacity: 0; transform: translateY(40px) scale(0.98);
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .slide.visible { opacity: 1; transform: none; }
+  .slide .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+  .slide.visible .reveal { opacity: 1; transform: none; }
+  .slide.visible .reveal:nth-child(1) { transition-delay: 0.1s; }
+  .slide.visible .reveal:nth-child(2) { transition-delay: 0.2s; }
+  .slide.visible .reveal:nth-child(3) { transition-delay: 0.3s; }
+  .slide.visible .reveal:nth-child(4) { transition-delay: 0.4s; }
+  .slide.visible .reveal:nth-child(5) { transition-delay: 0.5s; }
+  .slide.visible .reveal:nth-child(6) { transition-delay: 0.6s; }
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .slide .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  }
+
+  .slide:nth-child(odd)  { background-image: radial-gradient(ellipse at 18% 85%, var(--accent-dim) 0%, transparent 55%); }
+  .slide:nth-child(even) { background-image: radial-gradient(ellipse at 82% 15%, var(--accent-dim) 0%, transparent 55%); }
+
+  .slide__display { font-size: clamp(40px, 8vw, 92px); font-weight: 400; letter-spacing: -1px; line-height: 1.0; text-wrap: balance; }
+  .slide__heading { font-size: clamp(24px, 3.8vw, 38px); font-weight: 400; letter-spacing: -0.5px; line-height: 1.1; text-wrap: balance; margin-bottom: clamp(10px, 2vh, 22px); }
+  .slide__label { font-family: var(--font-mono); font-size: clamp(10px, 1.2vw, 13px); font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: clamp(8px, 1.5vh, 14px); }
+  .slide__subtitle { font-family: var(--font-mono); font-size: clamp(13px, 1.7vw, 18px); color: var(--text-dim); letter-spacing: 0.5px; }
+  em { color: var(--accent); font-style: italic; }
+
+  .slide--title { justify-content: center; align-items: center; text-align: center; }
+
+  .slide--split .slide__inner { display: grid; grid-template-columns: 5fr 6fr; gap: clamp(20px, 3.5vw, 52px); align-items: center; width: 100%; }
+  .slide--split .slide__inner > * { min-width: 0; }
+  .slide__bullets { list-style: none; }
+  .slide__bullets li { padding: clamp(5px, 1vh, 10px) 0 clamp(5px, 1vh, 10px) 22px; position: relative; font-size: clamp(14px, 1.7vw, 19px); line-height: 1.5; color: var(--text-dim); overflow-wrap: break-word; }
+  .slide__bullets li::before { content: ''; position: absolute; left: 0; top: clamp(14px, 2vh, 20px); width: 7px; height: 7px; transform: rotate(45deg); background: var(--accent); }
+  .slide__bullets strong { color: var(--text); font-weight: 400; }
+  .slide__bullets code, .slide__body code, td code, .verdict code, .check code {
+    font-family: var(--font-mono); font-size: 0.72em; background: var(--accent-dim);
+    color: var(--accent); padding: 2px 7px; border-radius: 4px;
+  }
+
+  .verdict {
+    margin-top: clamp(10px, 2vh, 20px);
+    font-family: var(--font-mono); font-size: clamp(11px, 1.35vw, 15px);
+    padding: clamp(10px, 1.8vh, 16px) clamp(14px, 1.8vw, 22px);
+    border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-dim); line-height: 1.6;
+  }
+  .verdict--good { border-left: 4px solid var(--green); }
+  .verdict--bad { border-left: 4px solid var(--red); }
+  .verdict--warn { border-left: 4px solid var(--accent); }
+  .verdict strong { color: var(--text); font-weight: 400; }
+
+  .pipeline { display: flex; align-items: stretch; margin-top: clamp(12px, 2vh, 24px); }
+  .pipeline__step { flex: 1; background: var(--surface); border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 10px; padding: clamp(10px, 2vh, 20px) clamp(9px, 1.2vw, 16px); display: flex; flex-direction: column; min-width: 0; overflow-wrap: break-word; }
+  .pipeline__num { font-family: var(--font-mono); font-size: clamp(9px, 1vw, 11px); font-weight: 600; color: var(--accent); letter-spacing: 1px; }
+  .pipeline__name { font-size: clamp(14px, 1.7vw, 19px); margin: clamp(4px, 0.8vh, 8px) 0; }
+  .pipeline__desc { font-family: var(--font-mono); font-size: clamp(9px, 1.05vw, 12px); color: var(--text-dim); line-height: 1.55; flex: 1; }
+  .pipeline__file { font-family: var(--font-mono); font-size: clamp(8px, 0.95vw, 11px); color: var(--accent); background: var(--accent-dim); padding: 3px 8px; border-radius: 4px; margin-top: clamp(8px, 1.4vh, 12px); align-self: flex-start; }
+  .pipeline__arrow { display: flex; align-items: center; padding: 0 clamp(3px, 0.4vw, 6px); color: var(--accent); flex-shrink: 0; opacity: 0.45; }
+
+  .slide__code-block { background: var(--code-bg); border: 1px solid var(--border); border-radius: 12px; padding: clamp(16px, 2.6vh, 30px) clamp(16px, 2.4vw, 30px); position: relative; width: 100%; }
+  .slide__code-filename { position: absolute; top: -12px; left: 24px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 4px; background: var(--accent); color: var(--code-bg); }
+  .slide__code-block pre { margin: 0; overflow-x: auto; }
+  .slide__code-block code { font-family: var(--font-mono); font-size: clamp(11px, 1.3vw, 15px); line-height: 1.65; color: var(--code-text); white-space: pre; background: none; padding: 0; }
+  .slide__code-block .c { color: #7a8494; }
+  .slide__code-block .g { color: #d4a73a; }
+  .slide__code-block .r { color: #c76a6a; }
+  .slide__code-block .gr { color: #7fb069; }
+
+  .matrix-wrap { overflow-x: auto; margin-top: clamp(10px, 2vh, 20px); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+  table.matrix { width: 100%; border-collapse: collapse; font-family: var(--font-mono); }
+  .matrix th, .matrix td { padding: clamp(7px, 1.3vh, 12px) clamp(9px, 1.1vw, 15px); text-align: left; font-size: clamp(9px, 1.1vw, 13px); border-bottom: 1px dashed var(--border); vertical-align: top; line-height: 1.45; }
+  .matrix thead th { color: var(--accent); text-transform: uppercase; letter-spacing: 1px; font-size: clamp(8px, 0.95vw, 11px); border-bottom: 1px solid var(--border-bright); }
+  .matrix tbody tr:last-child td { border-bottom: none; }
+  .matrix td:first-child { color: var(--text); white-space: nowrap; }
+  .matrix td { color: var(--text-dim); }
+  .matrix .good { color: var(--green); }
+  .matrix .bad { color: var(--red); }
+  .matrix .warn { color: var(--accent); }
+
+  /* checklist card */
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(12px, 1.8vw, 24px); margin-top: clamp(10px, 2vh, 20px); }
+  .check { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: clamp(14px, 2.2vh, 24px) clamp(14px, 1.8vw, 24px); min-width: 0; }
+  .check--must { border-top: 3px solid var(--accent); }
+  .check--verify { border-top: 3px solid var(--green); }
+  .check__title { font-family: var(--font-mono); font-size: clamp(10px, 1.15vw, 13px); font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: clamp(8px, 1.4vh, 14px); }
+  .check--must .check__title { color: var(--accent); }
+  .check--verify .check__title { color: var(--green); }
+  .check ul { list-style: none; }
+  .check li { font-family: var(--font-mono); font-size: clamp(10px, 1.15vw, 14px); color: var(--text-dim); line-height: 1.6; padding: clamp(4px, 0.8vh, 7px) 0 clamp(4px, 0.8vh, 7px) 20px; border-bottom: 1px dashed var(--border); position: relative; }
+  .check li::before { content: '✓'; position: absolute; left: 0; color: var(--green); }
+  .check--must li::before { content: '▸'; color: var(--accent); }
+  .check li:last-child { border-bottom: none; }
+  .check strong { color: var(--text); font-weight: 400; }
+
+  .deck-progress { position: fixed; top: 0; left: 0; height: 3px; background: var(--accent); z-index: 100; transition: width 0.3s ease; pointer-events: none; }
+  .deck-dots { position: fixed; right: clamp(12px, 2vw, 24px); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 8px; z-index: 100; }
+  .deck-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); opacity: 0.3; border: none; padding: 0; cursor: pointer; transition: opacity 0.2s ease, transform 0.2s ease; }
+  .deck-dot:hover { opacity: 0.6; }
+  .deck-dot.active { opacity: 1; transform: scale(1.5); background: var(--accent); }
+  .deck-counter { position: fixed; bottom: clamp(12px, 2vh, 24px); right: clamp(12px, 2vw, 24px); font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); z-index: 100; font-variant-numeric: tabular-nums; }
+  .deck-hints { position: fixed; bottom: clamp(12px, 2vh, 24px); left: 50%; transform: translateX(-50%); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); opacity: 0.6; z-index: 100; transition: opacity 0.5s ease; white-space: nowrap; }
+  .deck-hints.faded { opacity: 0; pointer-events: none; }
+
+  @media (max-height: 700px) {
+    .slide { padding: clamp(20px, 3.5vh, 36px) clamp(28px, 5vw, 70px); }
+    .slide__display { font-size: clamp(30px, 6.5vw, 60px); }
+  }
+  @media (max-height: 500px) { .deck-dots { display: none; } }
+  @media (max-width: 768px) {
+    .slide--split .slide__inner { grid-template-columns: 1fr; }
+    .pipeline { flex-direction: column; }
+    .pipeline__arrow { justify-content: center; padding: 4px 0; transform: rotate(90deg); }
+    .checks { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark theme"></button>
+<script>
+(function() {
+  var t = document.getElementById('themeToggle');
+  var s = localStorage.getItem('deck-theme');
+  var prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  var i = s || (prefersDark ? 'dark' : 'light');
+  if (s) document.documentElement.setAttribute('data-theme', i);
+  t.textContent = i === 'dark' ? '☀' : '☾';
+  t.addEventListener('click', function() {
+    var c = document.documentElement.getAttribute('data-theme') || (prefersDark ? 'dark' : 'light');
+    var n = c === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', n);
+    localStorage.setItem('deck-theme', n);
+    t.textContent = n === 'dark' ? '☀' : '☾';
+  });
+})();
+</script>
+
+<div class="deck">
+
+  <!-- 1 · TITLE -->
+  <section class="slide slide--title">
+    <div>
+      <p class="slide__label reveal">Deep Dive · Cập nhật 22/07/2026 · nhánh feat/agent-runtime-d1</p>
+      <h1 class="slide__display reveal">Embed Runtime + D1<br><em>từng bước, từng file</em></h1>
+      <p class="slide__subtitle reveal" style="margin-top:24px">Workflow · Code · Kiến trúc · Checklist vận hành</p>
+    </div>
+  </section>
+
+  <!-- 2 · DEFAULT VS NOW -->
+  <section class="slide slide--split">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">01 · Bối cảnh</p>
+        <h2 class="slide__heading reveal">Rời "mặc định" ở đúng một điểm</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><strong>Mặc định:</strong> LangGraph Server chạy process riêng, tự cắm <code>PostgresSaver</code> — bạn không chọn được storage.</li>
+          <li class="reveal">Bằng chứng source: <code>load.mts</code> ghi đè <code>compiled.checkpointer</code> — truyền D1 vào graph là vô nghĩa.</li>
+          <li class="reveal"><strong>Lối thoát:</strong> <code>createEmbedServer</code> (experimental) — cùng bộ route threads/runs nhưng nhận checkpointer của mình.</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">tam giác bất khả thi</span>
+          <pre><code>  LangGraph Server chuẩn
+         ▲
+        ╱ ╲     chọn 2 trong 3:
+       ╱   ╲
+      ╱     ╲   <span class="g">server chuẩn + no-custom → Postgres</span>
+     ╱       ╲  <span class="g">server chuẩn + D1       → fork lib</span>
+    ▼─────────▼ <span class="gr">no-custom-bridge + D1   → EMBED ✓</span>
+ Không custom   D1 checkpoints</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · FOLDER MAP -->
+  <section class="slide">
+    <p class="slide__label reveal">02 · Bản đồ thư mục — cái gì nằm ở đâu</p>
+    <h2 class="slide__heading reveal">Mọi mảnh ghép của runtime</h2>
+    <div class="reveal slide__code-block" style="margin-top:8px">
+      <span class="slide__code-filename">monorepo</span>
+      <pre><code>apps/bff/src/server.ts                 <span class="c">← mount /copilotkit + /langgraph sau requireAgentUser</span>
+apps/agent/src/
+  config/intelligence.ts               <span class="c">← CopilotRuntime + LangGraphAgent (loopback, headerFactory)</span>
+  middleware/agent-user-auth.ts        <span class="c">← verify Firebase → header x-agent-* đã làm sạch</span>
+  services/langgraph-embed-app.ts      <span class="c">← ★ embed server + assistants shim + inject claims</span>
+  services/d1-checkpoint-saver.ts      <span class="c">← BaseCheckpointSaver → HTTP → worker → D1</span>
+  services/d1-thread-saver.ts          <span class="c">← ThreadSaver (metadata thread) → worker → D1</span>
+  services/checkpoint-user-context.ts  <span class="c">← AsyncLocalStorage giữ userId cho mọi truy vấn D1</span>
+  middleware/durable-memory.ts         <span class="c">← agentContext + transcript + summary</span>
+  middleware/workspace-tools.ts        <span class="c">← wrapToolCall: bơm danh tính verified vào tool</span>
+  regression/                          <span class="c">← harness + 5 check: lưới an toàn cho API experimental</span>
+apps/memory-worker/
+  migrations/0004, 0005                <span class="c">← bảng checkpoints, checkpoint_writes, thread_store</span>
+  src/thread-store.ts                  <span class="c">← /v1/thread-store/{get,set,delete} (json_patch)</span></code></pre>
+    </div>
+  </section>
+
+  <!-- 4 · WORKFLOW PIPELINE -->
+  <section class="slide">
+    <p class="slide__label reveal">03 · Workflow — một tin nhắn đi qua 6 trạm</p>
+    <h2 class="slide__heading reveal">Browser → … → D1, tất cả trong một process</h2>
+    <div class="reveal pipeline">
+      <div class="pipeline__step">
+        <span class="pipeline__num">B1</span>
+        <span class="pipeline__name">Verify</span>
+        <span class="pipeline__desc">Firebase ID token → JWKS verify → xóa Authorization, gắn header <em>x-agent-*</em> sạch</span>
+        <span class="pipeline__file">agent-user-auth.ts</span>
+      </div>
+      <div class="pipeline__arrow">→</div>
+      <div class="pipeline__step">
+        <span class="pipeline__num">B2</span>
+        <span class="pipeline__name">Adapter</span>
+        <span class="pipeline__desc">Runtime tạo LangGraphAgent mỗi request, trỏ loopback <em>127.0.0.1:4000/langgraph</em> + Bearer của user</span>
+        <span class="pipeline__file">intelligence.ts</span>
+      </div>
+      <div class="pipeline__arrow">→</div>
+      <div class="pipeline__step">
+        <span class="pipeline__num">B3</span>
+        <span class="pipeline__name">Re-verify + ALS</span>
+        <span class="pipeline__desc">requireAgentUser lần 2 → AsyncLocalStorage(userId) bọc toàn bộ request</span>
+        <span class="pipeline__file">langgraph-embed-app.ts</span>
+      </div>
+      <div class="pipeline__arrow">→</div>
+      <div class="pipeline__step">
+        <span class="pipeline__num">B4</span>
+        <span class="pipeline__name">Inject claims</span>
+        <span class="pipeline__desc">POST tạo run: strip x-agent-* của client, ghi claims verified vào <em>config.configurable</em></span>
+        <span class="pipeline__file">withVerifiedRunClaims</span>
+      </div>
+      <div class="pipeline__arrow">→</div>
+      <div class="pipeline__step">
+        <span class="pipeline__num">B5</span>
+        <span class="pipeline__name">Graph chạy</span>
+        <span class="pipeline__desc">middleware đọc claims → agentContext → tools gọi space-api bằng token user</span>
+        <span class="pipeline__file">durable-memory.ts</span>
+      </div>
+      <div class="pipeline__arrow">→</div>
+      <div class="pipeline__step">
+        <span class="pipeline__num">B6</span>
+        <span class="pipeline__name">Persist</span>
+        <span class="pipeline__desc">checkpoint + thread metadata + transcript → memory worker → D1, scope theo user</span>
+        <span class="pipeline__file">d1-*-saver.ts</span>
+      </div>
+    </div>
+    <div class="reveal verdict verdict--good"><strong>Điểm khác biệt với default:</strong> B3, B4 là code của mình (server chuẩn tự làm); B6 là D1 thay vì Postgres. B1, B2, B5 giống mọi app CopilotKit khác.</div>
+  </section>
+
+  <!-- 5 · B1 CODE -->
+  <section class="slide slide--split">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">04 · B1 — cổng danh tính duy nhất</p>
+        <h2 class="slide__heading reveal">requireAgentUser</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Verify chữ ký token bằng <strong>Google JWKS</strong> — không cần Admin key.</li>
+          <li class="reveal"><strong>Xóa</strong> <code>Authorization</code> rồi mới gắn claims — downstream không bao giờ thấy credential gốc lẫn header giả từ client.</li>
+          <li class="reveal">Token đã verify đi tiếp dưới tên <code>x-agent-access-token</code> để tools gọi API sản phẩm as-user.</li>
+          <li class="reveal">Chặn theo domain email (<code>ALLOWED_EMAIL_DOMAINS</code>) + bắt buộc email verified.</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">middleware/agent-user-auth.ts</span>
+          <pre><code>const decoded = await verifyFirebaseIdToken(
+  idToken, env.FIREBASE_PROJECT_ID);
+
+headers.<span class="r">delete</span>('authorization');
+headers.set('x-agent-user-id',    user.userId);
+headers.set('x-agent-user-email', user.email);
+headers.set('x-agent-roles',      rolesEncoded);
+headers.set('x-agent-access-token', idToken);
+<span class="c">// danh tính LUÔN từ token verify,</span>
+<span class="c">// không bao giờ từ client tự khai</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · B2 CODE -->
+  <section class="slide slide--split">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">05 · B2 — adapter stock, không bridge</p>
+        <h2 class="slide__heading reveal">intelligence.ts</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><strong>Mỗi request một agent</strong> — vì token của từng user khác nhau, không share adapter được.</li>
+          <li class="reveal">URL là <strong>loopback về chính BFF</strong>: về mặt code giống hệt gọi LangGraph server ngoài, nhưng không có network hop thật.</li>
+          <li class="reveal">Chú ý: <strong>không</strong> gửi claims qua <code>assistantConfig</code> — adapter 0.0.42 lọc rơi key lạ (bug đã gặp thật, xem slide 08).</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">config/intelligence.ts</span>
+          <pre><code>agents: ({ request }) => {
+  const user = identityFromRequest(request);
+  return ... new LangGraphAgent({
+    deploymentUrl:
+      <span class="g">`http://127.0.0.1:${AGENT_PORT}/langgraph`</span>,
+    graphId: agent.graphId,
+    headerFactory: () => ({
+      Authorization: <span class="g">`Bearer ${user.accessToken}`</span>,
+    }),
+  });
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · B3 SHIM -->
+  <section class="slide slide--split">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">06 · B3 — những gì embed thiếu, shim bù</p>
+        <h2 class="slide__heading reveal">Assistants shim (~40 dòng)</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Embed server <strong>không có route</strong> <code>/assistants/*</code>, nhưng adapter bắt buộc gọi 3 endpoint để khởi động.</li>
+          <li class="reveal"><code>search</code>: trả metadata tĩnh từ registry graph — <strong><code>config: {}</code> là bắt buộc</strong>, adapter dereference <code>.configurable</code> vô điều kiện.</li>
+          <li class="reveal"><code>graph</code>: JSON của compiled graph → adapter lọc tên node khỏi stream.</li>
+          <li class="reveal"><code>schemas</code>: trả null — adapter rơi về bộ key mặc định.</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">services/langgraph-embed-app.ts</span>
+          <pre><code>shim.post('/assistants/search', ... ids.map(id => ({
+  assistant_id: id, graph_id: id, name: id,
+  <span class="g">config: {}</span>, <span class="c">// thiếu → TypeError trong adapter</span>
+  metadata: {}, version: 1, ...
+})));
+shim.get('/assistants/:id/graph',
+  async c => c.json((await g.getGraphAsync()).toJSON()));
+shim.get('/assistants/:id/schemas',
+  c => c.json({ config_schema: null, ... }));</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · B4 CLAIMS -->
+  <section class="slide slide--split">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">07 · B4 — trái tim của mô hình bảo mật</p>
+        <h2 class="slide__heading reveal">withVerifiedRunClaims</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Server đầy đủ copy header <code>x-*</code> vào configurable (<code>applyRequestHeadersToRunConfig</code>) — <strong>embed không làm</strong>.</li>
+          <li class="reveal">Adapter thì <strong>lọc rơi</strong> key lạ khỏi payload → hai phía cộng lại = graph mù danh tính.</li>
+          <li class="reveal">Fix: rewrite body mọi POST <code>/runs*</code> — <strong>xóa</strong> x-agent-* client gửi (chặn giả mạo tenant), <strong>chèn</strong> claims từ header đã verify.</li>
+        </ul>
+        <div class="reveal verdict verdict--warn"><strong>Bug thật 22/07:</strong> thiếu đoạn này → <code>RUN_ERROR: Trusted agent context is unavailable</code> khi tool chạy, và transcript âm thầm không ghi.</div>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">services/langgraph-embed-app.ts</span>
+          <pre><code>const configurable = { ...body.config?.configurable };
+for (const key of Object.keys(configurable))
+  if (key.startsWith(<span class="g">'x-agent-'</span>))
+    <span class="r">delete</span> configurable[key];   <span class="c">// chống spoof</span>
+
+for (const key of AGENT_CLAIM_HEADERS) {
+  const value = request.headers.get(key);
+  if (value) configurable[key] = value; <span class="c">// verified</span>
+}
+<span class="c">// body mới → embed → createStubRun spread</span>
+<span class="c">// → runtime.configurable trong middleware/tools</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · DISPATCH PREFIX -->
+  <section class="slide slide--split">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">08 · Chi tiết dễ vấp — mount prefix</p>
+        <h2 class="slide__heading reveal">Dispatch thủ công vào embed</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Muốn rewrite body thì không dùng <code>app.route</code> được → phải <code>embed.fetch(request mới)</code>.</li>
+          <li class="reveal">Nhưng BFF mount app tại <code>/langgraph</code>, còn embed route từ <code>/</code> → phải <strong>strip prefix</strong> trước khi dispatch.</li>
+          <li class="reveal">Prefix lấy từ <code>routePath</code> của Hono → chạy đúng cả khi mount ở root (harness cũ) lẫn <code>/langgraph</code> (production).</li>
+        </ul>
+        <div class="reveal verdict verdict--warn"><strong>Bug thật 22/07 (thứ 2):</strong> quên strip → <code>404 POST /langgraph/threads not implemented</code>. Harness khi đó mount ở root nên không phát hiện — bài học: harness phải giống production đến cả hình dạng mount.</div>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">services/langgraph-embed-app.ts</span>
+          <pre><code>app.all('*', async (c) => {
+  const url = new URL(c.req.raw.url);
+  const prefix = c.req.<span class="g">routePath</span>.replace(/\/\*$/, '');
+  if (prefix && url.pathname.startsWith(prefix))
+    url.pathname = url.pathname.slice(prefix.length);
+
+  let body = await c.req.raw.text();
+  if (POST && RUN_CREATE_PATH.test(url.pathname))
+    body = withVerifiedRunClaims(body, headers) ?? body;
+
+  return embed.fetch(new Request(url, {...}));
+});</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · B5 GRAPH SIDE -->
+  <section class="slide slide--split">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">09 · B5 — phía graph nhận danh tính</p>
+        <h2 class="slide__heading reveal">durable-memory → workspace-tools</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><code>resolveTrustedContext(runtime)</code> đọc claims từ <code>runtime.configurable</code> → dựng <code>agentContext</code> vào state (userId, email, roles, threadId).</li>
+          <li class="reveal">Tool chỉ được <strong>quảng cáo cho model khi</strong> <code>API_BASE_URL</code> có — không có API thì không có tool chết.</li>
+          <li class="reveal"><code>wrapToolCall</code>: model chỉ chọn tool + args; <strong>danh tính bơm từ context verified</strong>, args của model không bao giờ quyết định "ai đang gọi".</li>
+          <li class="reveal">Lỗi API (401/timeout) → <code>ApiClientError</code> → chuyển thành text cho model đọc, <strong>không sập run</strong>.</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">middleware/workspace-tools.ts</span>
+          <pre><code>wrapToolCall: async (request, handler) => {
+  const agentContext = request.state.agentContext;
+  const accessToken  =
+    request.runtime.configurable[<span class="g">'x-agent-access-token'</span>];
+  if (!agentContext || !accessToken)
+    <span class="r">throw</span> new Error(<span class="r">'Trusted agent context is unavailable'</span>);
+
+  const identity = { ...agentContext, accessToken };
+  return executeWorkspaceTool(name, args, <span class="g">identity</span>);
+}  <span class="c">// model không bao giờ cung cấp userId</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 · B6 PERSISTENCE -->
+  <section class="slide">
+    <p class="slide__label reveal">10 · B6 — persistence: 3 loại dữ liệu, 1 chỗ chứa</p>
+    <h2 class="slide__heading reveal">D1 qua memory worker</h2>
+    <div class="matrix-wrap reveal">
+      <table class="matrix">
+        <thead><tr><th>Dữ liệu</th><th>Class phía agent</th><th>Endpoint worker</th><th>Bảng D1</th><th>Scope tenant</th></tr></thead>
+        <tbody>
+          <tr><td>Engine checkpoint</td><td><code>D1CheckpointSaver</code></td><td>/v1/checkpoints/*</td><td>checkpoints, checkpoint_writes</td><td>configurable → <span class="warn">fallback ALS</span></td></tr>
+          <tr><td>Thread metadata</td><td><code>D1ThreadSaver</code></td><td>/v1/thread-store/*</td><td>thread_store <span class="warn">(migration 0005)</span></td><td><span class="good">chỉ ALS</span> — get miss → 404</td></tr>
+          <tr><td>Transcript chat</td><td>durable-memory middleware</td><td>/v1/memory/*</td><td>bảng transcript sẵn có</td><td>agentContext.userId</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="reveal verdict"><strong>Vì sao cần AsyncLocalStorage?</strong> LangGraph tự sinh config nội bộ (getState, resume-at-head) <em>không mang claims</em> — những call đó vẫn phải biết tenant. ALS được set một lần ở B3, mọi tầng dưới đọc được mà không cần truyền tay.</div>
+    <div class="reveal verdict"><strong>Vì sao patch bằng <code>json_patch</code> trong SQL?</strong> ThreadSaver có semantics <code>set(kind: 'put' | 'patch')</code> — patch merge metadata ngay trong upsert, tránh round-trip đọc-sửa-ghi.</div>
+  </section>
+
+  <!-- 12 · SECURITY MODEL -->
+  <section class="slide slide--split">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">11 · Mô hình bảo mật — tóm gọn</p>
+        <h2 class="slide__heading reveal">Một nguồn danh tính duy nhất</h2>
+        <ul class="slide__bullets">
+          <li class="reveal">Danh tính <strong>chỉ sinh ra tại</strong> <code>requireAgentUser</code> (verify chữ ký) — mọi nơi khác chỉ tiêu thụ.</li>
+          <li class="reveal">Client gửi thẳng <code>/langgraph</code> với claims giả trong body? → <code>withVerifiedRunClaims</code> xóa sạch rồi ghi đè.</li>
+          <li class="reveal">Model đòi đọc dữ liệu user khác qua args? → tool bỏ qua args danh tính, dùng context verified.</li>
+          <li class="reveal"><code>x-agent-access-token</code> <strong>không bao giờ được log</strong> và không nằm trong graph state (chỉ trong configurable).</li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="slide__code-block">
+          <span class="slide__code-filename">luồng danh tính</span>
+          <pre><code>Firebase ID token (browser)
+   │ verify JWKS
+   ▼
+x-agent-* headers  <span class="c">← nguồn sự thật</span>
+   ├─→ ALS(userId)        <span class="c">→ D1 scoping</span>
+   ├─→ config.configurable <span class="c">→ graph/tools</span>
+   └─→ Bearer → space-api  <span class="c">→ as-user</span>
+
+<span class="r">✗ body client</span>  <span class="r">✗ args của model</span>  <span class="c">— bị chặn/bỏ qua</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 · WHAT MUST EXIST / VERIFY -->
+  <section class="slide">
+    <p class="slide__label reveal">12 · Cần có gì — kiểm tra gì</p>
+    <h2 class="slide__heading reveal">Checklist khi chạy & khi nâng cấp</h2>
+    <div class="checks reveal">
+      <div class="check check--must">
+        <div class="check__title">Phải có (setup)</div>
+        <ul>
+          <li><code>apps/bff/.env</code>: OPENAI_API_KEY, <strong>FIREBASE_PROJECT_ID</strong> (= VITE_*), MEMORY_WORKER_URL, API_BASE_URL <strong>— BFF chỉ đọc file này</strong></li>
+          <li>Migration D1: <code>pnpm --filter @repo/memory-worker db:apply:local</code> (prod: <code>db:apply:remote</code>)</li>
+          <li>Pin <code>@langchain/langgraph-api@1.4.3</code> — exact, không semver</li>
+          <li>Ports: web 3000 · bff 4000 · space-api 8787 · worker 8788</li>
+        </ul>
+      </div>
+      <div class="check check--verify">
+        <div class="check__title">Kiểm chứng (mỗi lần đổi runtime / nâng pin)</div>
+        <ul>
+          <li><code>tsc --noEmit</code> + <code>eslint</code> + unit 37 tests</li>
+          <li>Bật harness: <code>tsx src/regression/copilotkit-gateway-harness.ts</code> (mount <code>/langgraph</code> như prod)</li>
+          <li><code>chat-flow-check</code> — stream + D1 memory giữa 2 run</li>
+          <li><code>hitl-tools-check</code> — frontend tool + interrupt/resume</li>
+          <li><code>trusted-context-check</code> — claims tới được workspace tool</li>
+          <li><code>summary-parity-check</code> — summary không lọt transcript</li>
+          <li>Browser E2E: chat → tool → reload → thread khôi phục → hỏi tiếp có context</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 14 · LESSONS -->
+  <section class="slide slide--split">
+    <div class="slide__inner">
+      <div>
+        <p class="slide__label reveal">13 · Hai bug một ngày — bài học</p>
+        <h2 class="slide__heading reveal">Chi phí thật của vùng "tự bù"</h2>
+        <ul class="slide__bullets">
+          <li class="reveal"><strong>Bug 1:</strong> claims không tới graph (adapter lọc + embed không đọc header). Lỗi chỉ nổ khi tool chạy; transcript hỏng <em>âm thầm</em>.</li>
+          <li class="reveal"><strong>Bug 2:</strong> quên strip mount prefix khi dispatch thủ công → 404 toàn bộ threads/runs.</li>
+          <li class="reveal">Cả hai đều nằm đúng phần code thay thế những gì server mặc định làm sẵn — <strong>đây là trade-off đã chọn, không phải tai nạn</strong>.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="reveal verdict verdict--good"><strong>Bài học 1:</strong> harness regression phải giống production đến cả <em>hình dạng mount</em> — giờ gateway harness dùng chính <code>createLangGraphEmbedApp</code>, mount <code>/langgraph</code>, claims qua <code>headerFactory</code>.</div>
+        <div class="reveal verdict verdict--good"><strong>Bài học 2:</strong> đường nào có thể <em>fail âm thầm</em> (durable-memory bỏ qua khi thiếu context) phải có check riêng — <code>trusted-context-check</code> sinh ra từ đây.</div>
+        <div class="reveal verdict verdict--good"><strong>Bài học 3:</strong> debug bằng bisect: gọi thẳng embed bằng curl (qua) vs qua adapter (rớt) → khoanh thủ phạm trong 1 bước.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 15 · CLOSING -->
+  <section class="slide slide--title">
+    <div>
+      <p class="slide__label reveal">Tổng kết</p>
+      <h2 class="slide__display reveal" style="font-size:clamp(32px,5.5vw,64px)">Đổi Postgres + process riêng<br>lấy <em>D1 + một process</em></h2>
+      <p class="slide__subtitle reveal" style="margin-top:20px">Giá: pin version experimental + ~150 dòng "tự bù" (shim, claims, tenancy)<br>được bảo hiểm bằng 5 regression check chạy trước/sau mỗi lần nâng cấp</p>
+      <p class="slide__subtitle reveal" style="margin-top:16px; opacity:0.7">Deck liên quan: agent-runtime-4-options-slides.html · inprocess-d1-runtime-slides.html</p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  class SlideEngine {
+    constructor() {
+      this.deck = document.querySelector('.deck');
+      this.slides = [...document.querySelectorAll('.slide')];
+      this.total = this.slides.length;
+      this.current = 0;
+      this.buildChrome();
+      this.bindEvents();
+      this.observe();
+      this.update();
+    }
+    buildChrome() {
+      const bar = document.createElement('div');
+      bar.className = 'deck-progress';
+      document.body.appendChild(bar);
+      this.bar = bar;
+      const dots = document.createElement('div');
+      dots.className = 'deck-dots';
+      this.slides.forEach((_, i) => {
+        const d = document.createElement('button');
+        d.className = 'deck-dot';
+        d.title = 'Slide ' + (i + 1);
+        d.onclick = () => this.goTo(i);
+        dots.appendChild(d);
+      });
+      document.body.appendChild(dots);
+      this.dots = [...dots.children];
+      const ctr = document.createElement('div');
+      ctr.className = 'deck-counter';
+      document.body.appendChild(ctr);
+      this.counter = ctr;
+      const hints = document.createElement('div');
+      hints.className = 'deck-hints';
+      hints.textContent = '← → hoặc cuộn để chuyển slide';
+      document.body.appendChild(hints);
+      this.hints = hints;
+      this.hintTimer = setTimeout(() => hints.classList.add('faded'), 4000);
+    }
+    bindEvents() {
+      document.addEventListener('keydown', (e) => {
+        if (e.target.closest('input, textarea, [contenteditable]')) return;
+        if (['ArrowDown', 'ArrowRight', ' ', 'PageDown'].includes(e.key)) { e.preventDefault(); this.next(); }
+        else if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); this.prev(); }
+        else if (e.key === 'Home') { e.preventDefault(); this.goTo(0); }
+        else if (e.key === 'End') { e.preventDefault(); this.goTo(this.total - 1); }
+        this.fadeHints();
+      });
+      let touchY;
+      this.deck.addEventListener('touchstart', (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+      this.deck.addEventListener('touchend', (e) => {
+        const dy = touchY - e.changedTouches[0].clientY;
+        if (Math.abs(dy) > 50) { dy > 0 ? this.next() : this.prev(); }
+      });
+    }
+    observe() {
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            this.current = this.slides.indexOf(entry.target);
+            this.update();
+          }
+        });
+      }, { threshold: 0.5 });
+      this.slides.forEach((s) => obs.observe(s));
+    }
+    goTo(i) { this.slides[Math.max(0, Math.min(i, this.total - 1))].scrollIntoView({ behavior: 'smooth' }); }
+    next() { if (this.current < this.total - 1) this.goTo(this.current + 1); }
+    prev() { if (this.current > 0) this.goTo(this.current - 1); }
+    update() {
+      this.bar.style.width = ((this.current + 1) / this.total * 100) + '%';
+      this.dots.forEach((d, i) => d.classList.toggle('active', i === this.current));
+      this.counter.textContent = (this.current + 1) + ' / ' + this.total;
+    }
+    fadeHints() { clearTimeout(this.hintTimer); this.hints.classList.add('faded'); }
+  }
+  new SlideEngine();
+</script>
+</body>
+</html>

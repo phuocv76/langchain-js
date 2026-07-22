@@ -1,14 +1,16 @@
 # @repo/bff
 
 Hono BFF that mounts the CopilotKit runtime (`createCopilotHonoHandler`) and
-runs LangGraph agents **in-process** (BuiltInAgent + D1 checkpoints when
-`MEMORY_WORKER_URL` is set).
+the embedded LangGraph platform app (`/langgraph`, D1 checkpoints + thread
+metadata when `MEMORY_WORKER_URL` is set). The runtime's `LangGraphAgent`
+adapters call `/langgraph` over loopback with the caller's Firebase token.
 
 ## Endpoints
 
 | Method | Path          | Auth                         | Description                                      |
 | ------ | ------------- | ---------------------------- | ------------------------------------------------ |
-| *      | `/copilotkit` | Firebase ID token (Bearer)   | CopilotKit v2 runtime (in-process graph).        |
+| *      | `/copilotkit` | Firebase ID token (Bearer)   | CopilotKit v2 runtime (LangGraphAgent adapters). |
+| *      | `/langgraph/*`| Firebase ID token (Bearer)   | Embedded LangGraph platform API (threads/runs).  |
 | GET    | `/memory/*`   | Firebase ID token (Bearer)   | Transcript history for the chat sidebar.         |
 | GET    | `/health`     | none                         | Liveness probe.                                  |
 

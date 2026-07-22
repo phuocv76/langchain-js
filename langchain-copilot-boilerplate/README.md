@@ -2,7 +2,8 @@
 
 A **Turborepo** boilerplate for a full-window AI chatbot: a **Vite + React**
 frontend, a **BFF** built with **Hono** + the **CopilotKit runtime**, and
-**LangGraph** agents run **in-process** (BuiltInAgent + D1 checkpoints).
+**LangGraph** agents served through an **embedded LangGraph platform app**
+(`createEmbedServer`) with **D1 checkpoints** — no separate agent server.
 
 Business data lives in your existing REST API (separate repo), which agent
 tools call through a typed client.
@@ -28,21 +29,26 @@ flowchart LR
   subgraph bff [apps/bff: Hono + CopilotKit]
     Identity["Firebase Bearer → x-agent-*"]
     Runtime["createCopilotHonoHandler /copilotkit"]
-    Bridge["BuiltInAgent / AG-UI bridge"]
-    Graph["createAgent + D1CheckpointSaver"]
+    Adapter["LangGraphAgent adapter (@ag-ui/langgraph)"]
+    Embed["/langgraph: createEmbedServer + assistants shim"]
+    Graph["createAgent + D1CheckpointSaver + D1ThreadSaver"]
     Tools["Tools -> api-client"]
   end
-  MW["apps/memory-worker (D1): transcript + checkpoints"]
+  MW["apps/memory-worker (D1): transcript + checkpoints + threads"]
   API["Existing REST API (separate repo)"]
-  UI -->|CORS| Identity --> Runtime --> Bridge --> Graph
+  UI -->|CORS| Identity --> Runtime --> Adapter
+  Adapter -->|loopback + user Bearer| Embed --> Graph
   Graph --> Tools -->|user Bearer token| API
-  Graph <-->|transcript + checkpoints| MW
+  Graph <-->|transcript + checkpoints + threads| MW
 ```
 
 The BFF verifies Firebase ID tokens, injects sanitized `x-agent-*` headers,
-and runs the graph in-process. Tools call the existing REST API with the
-user's Bearer token — identity always comes from that trusted context, never
-from model arguments. CopilotKit Intelligence is not used.
+and serves the graph through the embedded LangGraph platform routes
+(`/langgraph`, experimental `createEmbedServer` pinned by version); the
+CopilotKit runtime reaches them with stock `LangGraphAgent` adapters over
+loopback, re-presenting the caller's token. Tools call the existing REST API
+with the user's Bearer token — identity always comes from that trusted
+context, never from model arguments. CopilotKit Intelligence is not used.
 
 ## Tech stack
 
@@ -50,7 +56,7 @@ from model arguments. CopilotKit Intelligence is not used.
 | -------- | ------------------------------------------------------------------------- |
 | Monorepo | Turborepo + pnpm workspaces + TypeScript (strict)                         |
 | Frontend | Vite, React 19, Tailwind CSS 4, CopilotKit v2 CopilotChat                 |
-| BFF      | Node, Hono, CopilotKit runtime (in-process BuiltInAgent)                   |
+| BFF      | Node, Hono, CopilotKit runtime + embedded LangGraph platform app          |
 | Agent    | LangChain, LangGraph, Zod                                                 |
 | Identity | Firebase ID token (JWKS verify on BFF)                                    |
 | Tooling  | Shared ESLint (flat) + tsconfig via `@repo/config`; Prettier at repo root |

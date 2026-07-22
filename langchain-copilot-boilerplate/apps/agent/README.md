@@ -1,9 +1,12 @@
 # @repo/agent
 
-LangChain + LangGraph agents and tools. Graphs run **in-process** inside the
-BFF CopilotKit runtime (`BuiltInAgent` + `D1CheckpointSaver` when
-`MEMORY_WORKER_URL` is set). This package exports the `CopilotRuntime`
-factory and shared Hono routes (`/health`, `/memory`).
+LangChain + LangGraph agents and tools. Graphs are served through an
+**embedded LangGraph platform app** (`createEmbedServer`, mounted by the BFF
+at `/langgraph`) with `D1CheckpointSaver` + `D1ThreadSaver` when
+`MEMORY_WORKER_URL` is set; the CopilotKit runtime reaches it with stock
+`LangGraphAgent` adapters. This package exports the `CopilotRuntime`
+factory, the embed app builder, and shared Hono routes (`/health`,
+`/memory`).
 
 CopilotKit Intelligence is **not** used — durable transcript history and
 engine checkpoints both live in D1 behind `apps/memory-worker`.
@@ -14,12 +17,16 @@ engine checkpoints both live in D1 behind `apps/memory-worker`.
 src/
   index.ts               Public exports consumed by the BFF
   config/env.ts          Zod-validated environment
-  config/intelligence.ts CopilotRuntime + BuiltInAgent wiring
-  agents/workspace-agent/  graph.ts, agui-bridge.ts, prompt.ts
+  config/intelligence.ts CopilotRuntime + per-request LangGraphAgent wiring
+  agents/workspace-agent/  graph.ts, prompt.ts
   graphs/registry.ts     agent registry (id + graphId)
   tools/                 registered agent tools
   services/api-client.ts typed client for the existing product REST API
+  services/langgraph-embed-app.ts  embedded LangGraph platform app + shim
   services/d1-checkpoint-saver.ts  LangGraph checkpointer → memory worker
+  services/d1-thread-saver.ts      thread metadata store → memory worker
+  regression/            harness + checks for the experimental embed API
+                         (run before/after upgrading @langchain/langgraph-api)
   models/                ChatOpenAI singleton
   routes/ controllers/ middleware/  HTTP pieces mounted by the BFF
 langgraph.json           Optional graph map for LangGraph Studio
