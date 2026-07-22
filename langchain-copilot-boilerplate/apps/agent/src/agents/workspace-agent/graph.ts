@@ -19,9 +19,11 @@ const copilotkitMiddleware = createCopilotkitMiddleware({
 
 /**
  * Engine short-term memory: D1 via the memory worker when configured,
- * otherwise an in-process MemorySaver (threads reset on restart).
+ * otherwise an in-process MemorySaver (threads reset on restart). Also used
+ * by the embedded LangGraph platform app, which injects its own instance at
+ * graph load time.
  */
-const createCheckpointer = () =>
+export const createCheckpointer = () =>
   env.MEMORY_WORKER_URL ? new D1CheckpointSaver() : new MemorySaver();
 
 /** Builds a ReAct-style conversational agent with CopilotKit streaming support. */
@@ -56,8 +58,9 @@ const buildWorkspaceAgent = () => {
 const workspaceAgent = buildWorkspaceAgent();
 
 /**
- * Compiled graph with durable (or in-process) checkpointer. Consumed
- * in-process by the CopilotKit BuiltInAgent bridge — not by langgraph_api.
+ * Compiled graph with durable (or in-process) checkpointer. Served through
+ * the embedded LangGraph platform app (`services/langgraph-embed-app.ts`),
+ * which re-injects the same checkpointer kind at load time.
  */
 export const graph = workspaceAgent.graph;
 

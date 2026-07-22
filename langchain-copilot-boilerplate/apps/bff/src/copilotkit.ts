@@ -7,8 +7,10 @@ import { corsOrigins, createCopilotRuntime } from '@repo/agent';
 const BASE_PATH = '/copilotkit';
 
 /**
- * Builds the CopilotKit Hono handlers that run the workspace graph
- * in-process (BuiltInAgent + D1CheckpointSaver).
+ * Builds the CopilotKit Hono handlers. Agents are stock LangGraphAgent
+ * adapters calling the BFF's embedded LangGraph platform app (`/langgraph`)
+ * over loopback with the caller's verified token; checkpoints and thread
+ * metadata live in D1.
  *
  * The React client POSTs to the base path (single-route envelope). Other
  * clients may hit multi-route paths (`/agent/:id/run`, `/info`, …). Dispatch

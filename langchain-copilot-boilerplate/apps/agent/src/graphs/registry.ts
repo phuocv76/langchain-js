@@ -16,7 +16,7 @@ export interface AgentDefinition {
  *
  * To add an agent:
  *   1. Create `src/agents/<name>/graph.ts` exporting `graph`.
- *   2. Wire a BuiltInAgent factory in `config/intelligence.ts`.
+ *   2. Register the graph in `services/langgraph-embed-app.ts`.
  *   3. Add an entry here — the CopilotKit runtime picks it up automatically.
  *   4. Optionally register it in `langgraph.json` for LangGraph Studio.
  */

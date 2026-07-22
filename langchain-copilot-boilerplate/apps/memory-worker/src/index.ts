@@ -1,4 +1,5 @@
 import { handleCheckpointRequest } from './checkpoints';
+import { handleThreadStoreRequest } from './thread-store';
 import { type Env, isString, json } from './shared';
 
 export type { Env } from './shared';
@@ -310,6 +311,8 @@ export default {
     const pathname = new URL(request.url).pathname;
     const checkpointResponse = await handleCheckpointRequest(request, env, pathname);
     if (checkpointResponse) return checkpointResponse;
+    const threadStoreResponse = await handleThreadStoreRequest(request, env, pathname);
+    if (threadStoreResponse) return threadStoreResponse;
     if (request.method === 'POST' && pathname === '/v1/turns')
       return appendTurn(request, env);
     if (request.method === 'POST' && pathname === '/v1/retrieve')

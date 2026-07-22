@@ -6,7 +6,9 @@ import { logger as honoLogger } from 'hono/logger';
 
 // Internal
 import {
+  LANGGRAPH_BASE_PATH,
   corsOrigins,
+  createLangGraphEmbedApp,
   env,
   errorHandler,
   healthRoute,
@@ -44,12 +46,19 @@ app.use('/copilotkit', requireAgentUser);
 app.use('/copilotkit/*', requireAgentUser);
 app.use('/memory', requireAgentUser);
 app.use('/memory/*', requireAgentUser);
+app.use(LANGGRAPH_BASE_PATH, requireAgentUser);
+app.use(`${LANGGRAPH_BASE_PATH}/*`, requireAgentUser);
 
 // REST endpoints.
 app.route('/health', healthRoute);
 app.route('/memory', memoryRoute);
 
-// CopilotKit runtime (in-process graph + D1 checkpoints).
+// Embedded LangGraph platform API (threads/runs over D1). The CopilotKit
+// runtime's LangGraphAgent adapters call it over loopback with the caller's
+// Firebase token, so the same middleware establishes the tenant on that hop.
+app.route(LANGGRAPH_BASE_PATH, createLangGraphEmbedApp());
+
+// CopilotKit runtime (LangGraphAgent adapters + embedded platform app).
 app.all('/copilotkit', (c) => handleCopilotKitRequest(c.req.raw));
 app.all('/copilotkit/*', (c) => handleCopilotKitRequest(c.req.raw));
 
