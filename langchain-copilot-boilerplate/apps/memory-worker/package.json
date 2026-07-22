@@ -10,6 +10,7 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "db:apply:local": "wrangler d1 migrations apply agent-memory --local --env offline",
+    "db:clear:local": "bash scripts/clear-local-d1.sh",
     "db:apply:remote": "wrangler d1 migrations apply agent-memory --remote"
   },
   "devDependencies": {
