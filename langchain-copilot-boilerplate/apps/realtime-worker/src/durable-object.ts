@@ -4,7 +4,7 @@ import type { RealtimeEvent } from './types';
  * Durable Object: one instance per authenticated user (idFromName(userId)).
  * Holds all live WebSocket sessions for that user and fan-outs publish events.
  */
-export class UserHub implements DurableObject {
+export class LanchainBoilerplateHub implements DurableObject {
   private readonly sessions = new Set<WebSocket>();
 
   constructor(

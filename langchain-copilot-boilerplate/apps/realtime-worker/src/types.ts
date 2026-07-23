@@ -1,5 +1,5 @@
 export interface Env {
-  readonly USER_HUB: DurableObjectNamespace;
+  readonly LANCHAIN_BOILERPLATE_HUB: DurableObjectNamespace;
   readonly FIREBASE_PROJECT_ID: string;
   readonly REALTIME_PUBLISH_SECRET: string;
   /** Comma-separated browser origins allowed for CORS / WS. */

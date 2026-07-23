@@ -39,8 +39,8 @@ export const handleWebSocketUpgrade = async (
     return Response.json({ error: 'Invalid authentication token' }, { status: 401 });
   }
 
-  const id = env.USER_HUB.idFromName(userId);
-  const stub = env.USER_HUB.get(id);
+  const id = env.LANCHAIN_BOILERPLATE_HUB.idFromName(userId);
+  const stub = env.LANCHAIN_BOILERPLATE_HUB.get(id);
   const connectUrl = new URL(request.url);
   connectUrl.pathname = '/connect';
   // Strip the token from the DO-facing URL; auth already succeeded.

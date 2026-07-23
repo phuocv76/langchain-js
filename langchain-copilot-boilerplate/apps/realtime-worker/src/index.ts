@@ -2,7 +2,7 @@ import { handlePublish } from './publish';
 import type { Env } from './types';
 import { handleWebSocketUpgrade } from './websocket';
 
-export { UserHub } from './durable-object';
+export { LanchainBoilerplateHub } from './durable-object';
 
 const corsHeaders = (request: Request, env: Env): HeadersInit => {
   const origin = request.headers.get('Origin') ?? '';

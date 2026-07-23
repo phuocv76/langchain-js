@@ -1,23 +1,23 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "agent-realtime",
+  "name": "lanchain-boilerplate-realtime",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-13",
   "durable_objects": {
     "bindings": [
       {
-        "name": "USER_HUB",
-        "class_name": "UserHub"
+        "name": "LANCHAIN_BOILERPLATE_HUB",
+        "class_name": "LanchainBoilerplateHub"
       }
     ]
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["UserHub"]
+      "new_sqlite_classes": ["LanchainBoilerplateHub"]
     }
   ],
   "vars": {
-    "CORS_ORIGINS": "http://localhost:3000"
+    "CORS_ORIGINS": "https://langchain-js.pages.dev"
   }
 }

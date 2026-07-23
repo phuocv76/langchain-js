@@ -52,8 +52,8 @@ export const handlePublish = async (
   }
 
   const { userId, event } = parsed.data;
-  const id = env.USER_HUB.idFromName(userId);
-  const stub = env.USER_HUB.get(id);
+  const id = env.LANCHAIN_BOILERPLATE_HUB.idFromName(userId);
+  const stub = env.LANCHAIN_BOILERPLATE_HUB.get(id);
 
   const response = await stub.fetch(
     new Request('https://user-hub/broadcast', {

@@ -1,13 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "agent-memory",
+  "name": "lanchain-boilerplate-memory-worker",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-13",
   "d1_databases": [
     {
       "binding": "MEMORY_DB",
-      "database_name": "agent-memory",
-      "database_id": "replace-with-your-d1-database-id"
+      "database_name": "langchain-boilerplate-agent-memory",
+      "database_id": "6979d0bd-8845-45f5-881a-eb8cd202b51a"
     }
   ],
   "vectorize": [

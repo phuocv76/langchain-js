@@ -10,7 +10,7 @@ Cloudflare Worker + Durable Objects gateway for cross-session chat sync.
 | GET | `/ws` | Firebase ID token (`Authorization: Bearer` or `?token=`) | Browser WebSocket |
 | POST | `/publish` | `REALTIME_PUBLISH_SECRET` | Agent event fan-out |
 
-One Durable Object (`UserHub`) is created per Firebase `uid` and holds all
+One Durable Object (`LanchainBoilerplateHub`) is created per Firebase `uid` and holds all
 live sockets for that user.
 
 ## Local development
