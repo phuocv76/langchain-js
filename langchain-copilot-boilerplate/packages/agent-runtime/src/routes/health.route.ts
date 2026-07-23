@@ -2,7 +2,8 @@
 import { Hono } from 'hono';
 
 // Internal
-import { handleHealth } from '@agent/controllers/health.controller.js';
+import { createHealthHandler } from '../controllers/health.controller.js';
 
-/** `GET /health` — liveness probe. */
-export const healthRoute = new Hono().get('/', handleHealth);
+/** `GET /health` — liveness probe reporting the given service name. */
+export const createHealthRoute = (service: string): Hono =>
+  new Hono().get('/', createHealthHandler(service));

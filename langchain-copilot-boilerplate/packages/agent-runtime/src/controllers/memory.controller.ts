@@ -2,16 +2,14 @@
 import type { Context } from 'hono';
 
 // Internal
-import type { AgentUserContext } from '@agent/middleware/agent-user-auth.js';
+import type { AgentUserContext, MemoryIdentity } from '@repo/shared';
 import {
-  deleteCheckpointThread,
   deleteMemoryThread,
   listMemoryThread,
   listMemoryThreads,
   renameMemoryThread,
-  type MemoryIdentity,
-} from '@agent/services/memory-client.js';
-import { nowIso, publishRealtimeEvent } from '@agent/services/realtime/index.js';
+} from '../services/memory-client.js';
+import { nowIso, publishRealtimeEvent } from '../services/realtime/index.js';
 
 const identityFor = (context: Context, threadId: string): MemoryIdentity => {
   const user = context.get('agentUser') as AgentUserContext;
@@ -89,19 +87,10 @@ export const renameThread = async (context: Context): Promise<Response> => {
 export const deleteThread = async (context: Context): Promise<Response> => {
   const threadId = context.req.param('threadId');
   if (!threadId) return context.json({ error: 'threadId is required' }, 400);
+  // The worker deletes the whole thread scope in one atomic batch:
+  // transcript turns, titles, engine checkpoints, and platform thread
+  // metadata — the conversation is truly gone, not just hidden.
   await deleteMemoryThread(identityFor(context, threadId));
-
-  // Also drop the engine checkpoints so the conversation content is truly
-  // gone, not just hidden from the sidebar. Best-effort: the thread may
-  // predate checkpoint storage or already be deleted.
-  try {
-    await deleteCheckpointThread(identityFor(context, threadId));
-  } catch (error) {
-    console.warn(
-      '[memory] checkpoint delete skipped:',
-      error instanceof Error ? error.message : 'unknown error',
-    );
-  }
 
   const user = context.get('agentUser') as AgentUserContext;
   await publishRealtimeEvent({

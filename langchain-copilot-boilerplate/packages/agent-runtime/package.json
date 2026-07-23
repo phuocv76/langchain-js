@@ -1,0 +1,38 @@
+{
+  "name": "@repo/agent-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Reusable agent runtime: Firebase-verified identity, embedded LangGraph platform app, D1 persistence clients, durable-memory middleware, and the CopilotKit runtime factory. Product graphs and tools live in the product servers under apps/.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "tsx --test src/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ag-ui/langgraph": "catalog:",
+    "@copilotkit/runtime": "catalog:",
+    "@hono/node-server": "catalog:",
+    "@langchain/core": "catalog:",
+    "@langchain/langgraph": "catalog:",
+    "@langchain/langgraph-api": "catalog:",
+    "@langchain/langgraph-checkpoint": "catalog:",
+    "@langchain/openai": "catalog:",
+    "@repo/shared": "workspace:*",
+    "hono": "catalog:",
+    "jose": "catalog:",
+    "langchain": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  }
+}

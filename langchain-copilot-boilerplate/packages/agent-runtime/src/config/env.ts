@@ -6,8 +6,8 @@ import { z } from 'zod';
  * process fails fast on misconfiguration.
  *
  * `OPENAI_API_KEY` is optional at this layer so env parsing never blocks boot;
- * the model factory in `models/index.ts` throws a clear, specific error if the
- * key is missing when a graph is actually constructed.
+ * the model factory in `models/chat-model.ts` throws a clear, specific error
+ * if the key is missing when a graph is actually constructed.
  */
 const optionalSecret = z.preprocess(
   (value) =>
@@ -25,17 +25,16 @@ const isValidOriginList = (value: string): boolean =>
     }
   });
 
-export const envSchema = z
-  .object({
+/**
+ * Infrastructure variables: runtime ports, CORS, model provider, Firebase
+ * identity, and worker persistence. Product-agnostic — this fragment moves
+ * with the runtime if it is extracted into a package.
+ */
+const infraEnvSchema = z.object({
     NODE_ENV: z
       .enum(['development', 'test', 'production'])
       .default('development'),
     AGENT_PORT: z.coerce.number().int().positive().default(4000),
-    /**
-     * Optional LangGraph Studio / `langgraphjs` URL. Chat no longer proxies
-     * through the Agent Server — graphs run in-process with D1 checkpoints.
-     */
-    LANGGRAPH_DEPLOYMENT_URL: z.string().url().optional(),
     CORS_ORIGINS: z
       .string()
       .refine(isValidOriginList, 'Must be a comma-separated list of valid URLs')
@@ -61,10 +60,6 @@ export const envSchema = z
      * JWKS (no Admin private key). Must match VITE_FIREBASE_PROJECT_ID.
      */
     FIREBASE_PROJECT_ID: z.string().min(1).optional(),
-    /** Base URL of the existing product REST API that agent tools call. */
-    API_BASE_URL: z.string().url().optional(),
-    /** Bound external API waits so a slow endpoint cannot stall a chat run. */
-    API_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
     /** Memory worker endpoint; a bare URL is enough for local `wrangler dev`. */
     MEMORY_WORKER_URL: z.string().url().optional(),
     /** Cloudflare Access service token pair, required only for deployed workers. */
@@ -81,7 +76,9 @@ export const envSchema = z
     COPILOTKIT_LICENSE_TOKEN: optionalSecret,
     /** Optional LangSmith API key (tracing / Studio). */
     LANGSMITH_API_KEY: optionalSecret,
-  })
+});
+
+export const envSchema = infraEnvSchema
   .superRefine((value, context) => {
     const accessValues = [value.CF_ACCESS_CLIENT_ID, value.CF_ACCESS_CLIENT_SECRET];
     const accessConfiguredCount = accessValues.filter(Boolean).length;
@@ -126,7 +123,7 @@ if (!parsed.success) {
     'Invalid environment variables:',
     parsed.error.flatten().fieldErrors,
   );
-  throw new Error('Invalid environment configuration for @repo/agent');
+  throw new Error('Invalid environment configuration for @repo/agent-runtime');
 }
 
 /** Validated, typed environment. */

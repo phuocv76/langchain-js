@@ -1,5 +1,7 @@
-# Copy to `.dev.vars` for local wrangler: `cp .dev.vars.sample .dev.vars`
-# Same Firebase project as apps/agent and apps/web.
+# Copy per product env: `cp .dev.vars.sample .dev.vars.space` (wrangler dev
+# --env space reads `.dev.vars.space`; a plain `.dev.vars` is the fallback).
+# Same Firebase project as the product's agent server (FIREBASE_PROJECT_ID
+# in apps/<product>-agent/.env) and its frontend.
 FIREBASE_PROJECT_ID=your-project-id
 # Shared secret the agent sends on POST /publish (not a Firebase token).
 REALTIME_PUBLISH_SECRET=dev-realtime-publish-secret-change-me

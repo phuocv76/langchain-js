@@ -2,8 +2,8 @@
 import type { Context } from 'hono';
 
 // Internal
-import { env } from '@agent/config/env.js';
-import { logger } from '@agent/utils/logger.js';
+import { env } from '../config/env.js';
+import { logger } from '../utils/logger.js';
 
 /** Central error handler mapping thrown errors to JSON responses. */
 export const errorHandler = (err: Error, c: Context): Response => {

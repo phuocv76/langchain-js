@@ -1,24 +1,12 @@
-export type RealtimeEventType =
-  | 'MESSAGE_CREATED'
-  | 'THREAD_CREATED'
-  | 'THREAD_UPDATED'
-  | 'THREAD_RENAMED'
-  | 'THREAD_DELETED';
+// Internal
+import type { RealtimePublishRequest } from '@repo/shared';
 
-export type RealtimeEvent = {
-  readonly type: RealtimeEventType;
-  readonly threadId: string;
-  readonly updatedAt: string;
-  readonly messageId?: string;
-  readonly role?: string;
-  readonly title?: string | null;
-};
-
-export type PublishRequest = {
-  readonly userId: string;
-  readonly event: RealtimeEvent;
-};
+export type {
+  RealtimeEvent,
+  RealtimeEventType,
+  RealtimePublishRequest,
+} from '@repo/shared';
 
 export interface RealtimePublisher {
-  publish(request: PublishRequest): Promise<void>;
+  publish(request: RealtimePublishRequest): Promise<void>;
 }

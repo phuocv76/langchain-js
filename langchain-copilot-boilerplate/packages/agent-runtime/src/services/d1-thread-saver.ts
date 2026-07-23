@@ -2,9 +2,12 @@
 import { HTTPException } from 'hono/http-exception';
 
 // Internal
-import { env } from '@agent/config/env.js';
-import { getCheckpointUserId } from '@agent/services/checkpoint-user-context.js';
-import { accessHeaders } from '@agent/services/memory-client.js';
+import { env } from '../config/env.js';
+import { getCheckpointUserId } from './checkpoint-user-context.js';
+import {
+  accessHeaders,
+  requestMemoryWorker,
+} from './memory-worker-client.js';
 
 /** Thread shape the embedded LangGraph platform routes expect. */
 export interface StoredThread {
@@ -74,17 +77,13 @@ export class D1ThreadSaver {
         'MEMORY_WORKER_URL must be configured for durable threads',
       );
     }
-    const response = await fetch(`${this.#baseUrl}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...this.#headers },
-      body: JSON.stringify(body),
+    return requestMemoryWorker<T>({
+      baseUrl: this.#baseUrl,
+      path,
+      body,
+      headers: this.#headers,
+      context: 'Thread store',
     });
-    if (!response.ok) {
-      throw new ThreadStoreError(
-        `Thread store ${path} returned ${response.status}`,
-      );
-    }
-    return (await response.json()) as T;
   }
 
   #toThread(row: ThreadRow): StoredThread {

@@ -5,38 +5,33 @@ import { randomUUID } from 'node:crypto';
 import type { MiddlewareHandler } from 'hono';
 
 // Internal
-import { allowedEmailDomains, env } from '@agent/config/env.js';
+import {
+  AGENT_HEADER_ACCESS_TOKEN,
+  AGENT_HEADER_REQUEST_ID,
+  AGENT_HEADER_ROLES,
+  AGENT_HEADER_USER_EMAIL,
+  AGENT_HEADER_USER_ID,
+  type AgentRunIdentity,
+  type AgentUserContext,
+} from '@repo/shared';
+import { allowedEmailDomains, env } from '../config/env.js';
 import {
   FirebaseAuthError,
   verifyFirebaseIdToken,
-} from '@agent/services/firebase-auth.js';
+} from '../services/firebase-auth.js';
 
-export interface AgentUserContext {
-  readonly requestId: string;
-  readonly userId: string;
-  /** Verified email — the product API keys users by it. */
-  readonly email: string;
-  readonly roles: readonly string[];
-}
-
-/**
- * Verified identity plus the Firebase ID token for product-API Bearer auth.
- * Built from sanitized `x-agent-*` headers after `requireAgentUser`.
- */
-export interface AgentRunIdentity extends AgentUserContext {
-  readonly accessToken: string;
-}
+export type { AgentRunIdentity, AgentUserContext };
 
 /**
  * Reads the sanitized identity headers set by `requireAgentUser`. Throws when
  * any claim is missing — the CopilotKit factory must never invent a user.
  */
 export const identityFromRequest = (request: Request): AgentRunIdentity => {
-  const requestId = request.headers.get('x-agent-request-id');
-  const userId = request.headers.get('x-agent-user-id');
-  const email = request.headers.get('x-agent-user-email');
-  const rolesHeader = request.headers.get('x-agent-roles');
-  const accessToken = request.headers.get('x-agent-access-token');
+  const requestId = request.headers.get(AGENT_HEADER_REQUEST_ID);
+  const userId = request.headers.get(AGENT_HEADER_USER_ID);
+  const email = request.headers.get(AGENT_HEADER_USER_EMAIL);
+  const rolesHeader = request.headers.get(AGENT_HEADER_ROLES);
+  const accessToken = request.headers.get(AGENT_HEADER_ACCESS_TOKEN);
   if (!requestId || !userId || !email || !rolesHeader || !accessToken) {
     throw new Error('Verified agent user context is missing from the request');
   }
@@ -145,11 +140,11 @@ export const requireAgentUser: MiddlewareHandler = async (context, next) => {
     // the verified ID token under a dedicated header so product-API tools can
     // present it as Bearer without putting credentials into graph state.
     headers.delete('authorization');
-    headers.set('x-agent-request-id', user.requestId);
-    headers.set('x-agent-user-id', user.userId);
-    headers.set('x-agent-user-email', user.email);
-    headers.set('x-agent-roles', encodeURIComponent(JSON.stringify(user.roles)));
-    headers.set('x-agent-access-token', idToken);
+    headers.set(AGENT_HEADER_REQUEST_ID, user.requestId);
+    headers.set(AGENT_HEADER_USER_ID, user.userId);
+    headers.set(AGENT_HEADER_USER_EMAIL, user.email);
+    headers.set(AGENT_HEADER_ROLES, encodeURIComponent(JSON.stringify(user.roles)));
+    headers.set(AGENT_HEADER_ACCESS_TOKEN, idToken);
     context.set('agentUser', user);
     await next();
   } catch (error) {

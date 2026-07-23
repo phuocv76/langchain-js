@@ -1,5 +1,5 @@
 /**
- * Parity check for the no-bridge chain: drive a conversation past the
+ * Parity check for the embed-runtime chain: drive a conversation past the
  * summarization trigger (16 messages). The stock adapter delivers raw engine
  * state, so the rolling summary DOES appear in the raw transcript — the web
  * ThreadHydrator filters it by prefix. This script guards that contract:
@@ -8,7 +8,7 @@
  * the prefix fails here instead of leaking bubbles to users. Run with the
  * regression harness up (`copilotkit-gateway-harness.ts`):
  *
- *   cd apps/agent && npx tsx src/regression/summary-parity-check.ts
+ *   cd apps/space-agent && npx tsx src/regression/summary-parity-check.ts
  */
 
 // Libs for Node
@@ -17,12 +17,13 @@ import { randomUUID } from 'node:crypto';
 // Libs for third party
 import { HttpAgent } from '@ag-ui/client';
 
+// Internal
+import { SUMMARY_PREFIX } from '@repo/shared';
+import { WORKSPACE_AGENT_ID } from '@agent/graphs/agent-ids.js';
+
 const RUN_URL =
   process.env.REGRESSION_COPILOTKIT_URL ??
-  'http://localhost:2200/copilotkit/agent/workspaceAgent/run';
-
-/** Prefix langchain's summarizationMiddleware puts on its rolling summary. */
-const SUMMARY_PREFIX = 'Here is a summary of the conversation to date:';
+  `http://localhost:2200/copilotkit/agent/${WORKSPACE_AGENT_ID}/run`;
 
 /** 9 exchanges = 18+ messages, past the 16-message summarization trigger. */
 const TURNS = 9;

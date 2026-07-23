@@ -2,7 +2,7 @@
  * Regression check: drives the CopilotKit runtime exactly like the web app
  * does — an AG-UI HttpAgent posting to the multi-route run endpoint. Run:
  *
- *   cd apps/agent && npx tsx src/regression/chat-flow-check.ts
+ *   cd apps/space-agent && npx tsx src/regression/chat-flow-check.ts
  *
  * Chain under test: HttpAgent → CopilotKit runtime (2200) → LangGraphAgent
  * adapter → embed server (2100) → workspace graph → D1 checkpoints.
@@ -13,10 +13,11 @@ import { randomUUID } from 'node:crypto';
 
 // Libs for third party
 import { HttpAgent } from '@ag-ui/client';
+import { WORKSPACE_AGENT_ID } from '@agent/graphs/agent-ids.js';
 
 const RUN_URL =
   process.env.REGRESSION_COPILOTKIT_URL ??
-  'http://localhost:2200/copilotkit/agent/workspaceAgent/run';
+  `http://localhost:2200/copilotkit/agent/${WORKSPACE_AGENT_ID}/run`;
 
 const textOf = (content: unknown): string =>
   typeof content === 'string' ? content : '';

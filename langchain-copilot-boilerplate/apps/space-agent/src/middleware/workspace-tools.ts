@@ -3,10 +3,11 @@ import { ToolMessage } from '@langchain/core/messages';
 import { createMiddleware } from 'langchain';
 
 // Internal
+import { AGENT_HEADER_ACCESS_TOKEN } from '@repo/shared';
 import {
   DurableMemoryStateSchema,
   type TrustedAgentStateContext,
-} from '@agent/middleware/durable-memory-state.js';
+} from '@repo/agent-runtime';
 import {
   type ActingIdentity,
   isApiConfigured,
@@ -18,7 +19,7 @@ import { isWorkspaceTool, workspaceTools } from '@agent/tools/workspace.tools.js
 const readAccessToken = (runtime: unknown): string | undefined => {
   const configurable = (runtime as { configurable?: Record<string, unknown> })
     .configurable;
-  const token = configurable?.['x-agent-access-token'];
+  const token = configurable?.[AGENT_HEADER_ACCESS_TOKEN];
   return typeof token === 'string' && token ? token : undefined;
 };
 

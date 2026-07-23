@@ -9,18 +9,27 @@ import { createMiddleware } from 'langchain';
 
 // Internal
 import {
+  AGENT_HEADER_REQUEST_ID,
+  AGENT_HEADER_ROLES,
+  AGENT_HEADER_USER_EMAIL,
+  AGENT_HEADER_USER_ID,
+} from '@repo/shared';
+import {
   DurableMemoryStateSchema,
   type TrustedAgentStateContext,
-} from '@agent/middleware/durable-memory-state.js';
+} from './durable-memory-state.js';
 import {
   appendMemoryTurn,
   deleteMemoryThread,
   deleteMemoryUser,
   listMemoryThread,
   retrieveMemory,
-} from '@agent/services/memory-client.js';
-import { nowIso, publishRealtimeEvent } from '@agent/services/realtime/index.js';
-import { memoryManagementTool } from '@agent/tools/memory-management.tool.js';
+} from '../services/memory-client.js';
+import { nowIso, publishRealtimeEvent } from '../services/realtime/index.js';
+import {
+  MEMORY_MANAGEMENT_TOOL_NAME,
+  memoryManagementTool,
+} from '../tools/memory-management.tool.js';
 
 type AgentState = {
   readonly agentContext?: TrustedAgentStateContext;
@@ -32,11 +41,10 @@ type AgentState = {
 /**
  * Rebuilds the verified identity from the middleware runtime.
  *
- * The CopilotKit runtime forwards the sanitized `x-agent-*` headers on its
- * requests to the LangGraph server; the LangGraph server copies every `x-*`
- * request header into the run's configurable under its lowercased name (see
- * `applyRequestHeadersToRunConfig` in @langchain/langgraph-api), and
- * middleware hooks receive that map as `runtime.configurable`.
+ * The embed app rewrites every run-creation body so `config.configurable`
+ * carries the sanitized claims from the verified headers (see
+ * `withVerifiedRunClaims` in services/langgraph-embed-app.ts); middleware
+ * hooks receive that map as `runtime.configurable`.
  */
 export const resolveTrustedContext = (
   runtime: unknown,
@@ -50,10 +58,10 @@ export const resolveTrustedContext = (
   };
 
   const threadId = configurable?.thread_id;
-  const requestId = header('x-agent-request-id');
-  const userId = header('x-agent-user-id');
-  const email = header('x-agent-user-email');
-  const rolesHeader = header('x-agent-roles');
+  const requestId = header(AGENT_HEADER_REQUEST_ID);
+  const userId = header(AGENT_HEADER_USER_ID);
+  const email = header(AGENT_HEADER_USER_EMAIL);
+  const rolesHeader = header(AGENT_HEADER_ROLES);
   if (
     typeof threadId !== 'string' ||
     !requestId ||
@@ -135,7 +143,7 @@ export const durableMemoryMiddleware = createMiddleware({
   stateSchema: DurableMemoryStateSchema,
   tools: [memoryManagementTool],
   wrapToolCall: async (request, handler) => {
-    if (request.toolCall.name !== 'manage_memory') return handler(request);
+    if (request.toolCall.name !== MEMORY_MANAGEMENT_TOOL_NAME) return handler(request);
     const identity = (request.state as AgentState).agentContext;
     if (!identity) {
       throw new Error('Trusted agent context is unavailable');

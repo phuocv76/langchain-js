@@ -24,6 +24,15 @@ export const baseConfig = [
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', '.turbo/**'],
+    // Build outputs, mirroring .gitignore: never lint generated files.
+    ignores: [
+      'dist/**',
+      'build/**',
+      '.next/**',
+      'out/**',
+      'node_modules/**',
+      '.turbo/**',
+      '.wrangler/**',
+    ],
   },
 ];

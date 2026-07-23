@@ -2,7 +2,7 @@
  * Regression check: HITL + frontend tools through the no-bridge chain
  * (CopilotKit runtime → LangGraphAgent → embed server → D1). Run with:
  *
- *   cd apps/agent && npx tsx src/regression/hitl-tools-check.ts
+ *   cd apps/space-agent && npx tsx src/regression/hitl-tools-check.ts
  *
  * Scenario A — frontend tool: the model must call a client-declared tool
  * (delivered via AG-UI `tools`, surfaced to the graph as
@@ -19,6 +19,7 @@ import { randomUUID } from 'node:crypto';
 
 // Libs for third party
 import { HttpAgent } from '@ag-ui/client';
+import { WORKSPACE_AGENT_ID } from '@agent/graphs/agent-ids.js';
 
 const BASE =
   process.env.REGRESSION_COPILOTKIT_BASE ?? 'http://localhost:2200/copilotkit/agent';
@@ -57,9 +58,9 @@ const trackEvents = (agent: HttpAgent): Set<string> => {
 };
 
 const frontendToolScenario = async (): Promise<void> => {
-  console.log('\n=== Scenario A: frontend tool (workspaceAgent) ===');
+  console.log(`\n=== Scenario A: frontend tool (${WORKSPACE_AGENT_ID}) ===`);
   const threadId = randomUUID();
-  const agent = new HttpAgent({ url: `${BASE}/workspaceAgent/run`, threadId });
+  const agent = new HttpAgent({ url: `${BASE}/${WORKSPACE_AGENT_ID}/run`, threadId });
   const seen = trackEvents(agent);
 
   agent.messages = [

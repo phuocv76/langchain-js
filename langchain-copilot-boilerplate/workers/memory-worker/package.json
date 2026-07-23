@@ -4,20 +4,27 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --env offline --port 8788 --inspector-port 9230",
-    "dev:offline": "wrangler dev --env offline --port 8788 --inspector-port 9230",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --env space-offline --port 8788 --inspector-port 9230",
+    "dev:space": "wrangler dev --env space-offline --port 8788 --inspector-port 9230",
+    "dev:kitchen": "wrangler dev --env kitchen-offline --port 8790 --inspector-port 9231",
+    "deploy:space": "wrangler deploy --env space",
+    "deploy:kitchen": "wrangler deploy --env kitchen",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "db:apply:local": "wrangler d1 migrations apply agent-memory --local --env offline",
-    "db:clear:local": "bash scripts/clear-local-d1.sh",
-    "db:apply:remote": "wrangler d1 migrations apply agent-memory --remote"
+    "db:apply:local:space": "wrangler d1 migrations apply agent-memory --local --env space-offline",
+    "db:apply:remote:space": "wrangler d1 migrations apply agent-memory --remote --env space",
+    "db:apply:local:kitchen": "wrangler d1 migrations apply kitchen-agent-memory --local --env kitchen-offline",
+    "db:apply:remote:kitchen": "wrangler d1 migrations apply kitchen-agent-memory --remote --env kitchen",
+    "db:clear:local:space": "bash scripts/clear-local-d1.sh space-offline agent-memory",
+    "db:clear:local:kitchen": "bash scripts/clear-local-d1.sh kitchen-offline kitchen-agent-memory"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260320.0",
-    "@repo/config": "workspace:*",
-    "eslint": "^9.17.0",
-    "typescript": "^5.9.3",
-    "wrangler": "^4.67.0"
+    "@cloudflare/workers-types": "catalog:",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/shared": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
   }
 }

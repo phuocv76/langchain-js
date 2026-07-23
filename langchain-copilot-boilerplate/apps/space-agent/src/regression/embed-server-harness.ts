@@ -1,12 +1,12 @@
 /**
  * Regression harness: serves the workspace graph through LangGraph's experimental embed
  * server (`@langchain/langgraph-api/experimental/embed`) with checkpoints in
- * D1 — no AG-UI bridge involved. Run with:
+ * D1 — the same runtime the BFF embeds in production. Run with:
  *
- *   cd apps/agent && npx tsx --env-file=.env src/regression/embed-server-harness.ts
+ *   cd apps/space-agent && npx tsx --env-file=.env src/regression/embed-server-harness.ts
  *
  * Requires the memory worker on MEMORY_WORKER_URL (pnpm --filter
- * @repo/memory-worker dev) so D1CheckpointSaver has a backend.
+ * @repo/memory-worker dev:space) so D1CheckpointSaver has a backend.
  */
 
 // Libs for third party
@@ -15,14 +15,17 @@ import { createEmbedServer } from '@langchain/langgraph-api/experimental/embed';
 import { Hono } from 'hono';
 
 // Internal
+import {
+  D1CheckpointSaver,
+  createInMemoryThreadSaver,
+  runWithCheckpointUser,
+} from '@repo/agent-runtime';
 import { graph } from '@agent/agents/workspace-agent/graph.js';
-import { runWithCheckpointUser } from '@agent/services/checkpoint-user-context.js';
-import { D1CheckpointSaver } from '@agent/services/d1-checkpoint-saver.js';
-import { createInMemoryThreadSaver } from '@agent/services/d1-thread-saver.js';
+import { WORKSPACE_AGENT_ID } from '@agent/graphs/agent-ids.js';
 
 /** Fixed tenant for regression runs; production would verify Firebase per request. */
 export const REGRESSION_USER_ID = 'regression-user';
-export const REGRESSION_GRAPH_ID = 'workspaceAgent';
+export const REGRESSION_GRAPH_ID = WORKSPACE_AGENT_ID;
 const PORT = 2100;
 
 /**
@@ -30,7 +33,7 @@ const PORT = 2100;
  * with D1 checkpoints. The embed routes run the graph and call
  * `graph.getState` with configs LangGraph synthesizes itself (thread_id
  * only), so the tenant for D1 scoping must come from AsyncLocalStorage —
- * the same mechanism the AG-UI bridge uses today.
+ * the same mechanism the production embed app uses.
  */
 type EmbedGraphs = Parameters<typeof createEmbedServer>[0]['graph'];
 

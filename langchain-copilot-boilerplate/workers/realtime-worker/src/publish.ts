@@ -24,7 +24,7 @@ const extractPublishSecret = (request: Request): string | undefined => {
 };
 
 /**
- * Internal publish endpoint used by apps/agent after durable writes succeed.
+ * Internal publish endpoint used by the BFF agent runtime after durable writes succeed.
  */
 export const handlePublish = async (
   request: Request,

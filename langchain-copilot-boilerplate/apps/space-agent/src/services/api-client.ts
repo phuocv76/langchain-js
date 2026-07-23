@@ -1,23 +1,15 @@
 // Internal
+import type { AgentRunIdentity } from '@repo/shared';
 import { env } from '@agent/config/env.js';
 
 /**
  * Verified identity a tool acts on behalf of. Always sourced from the trusted
  * agent context (see durable-memory middleware) — never from model arguments,
- * so the model can never choose whose data an API call touches.
+ * so the model can never choose whose data an API call touches. The token is
+ * presented to the product API as `Authorization: Bearer`; it comes from run
+ * configurable — never from graph state.
  */
-export interface ActingIdentity {
-  readonly requestId: string;
-  readonly userId: string;
-  /** Verified email — used when a tool omits an explicit employee email. */
-  readonly email: string;
-  /**
-   * Verified Firebase ID token. Presented to the product API as
-   * `Authorization: Bearer` so the API can identify the signed-in user and
-   * enforce permissions. Read from run configurable — never from graph state.
-   */
-  readonly accessToken: string;
-}
+export type ActingIdentity = Omit<AgentRunIdentity, 'roles'>;
 
 export class ApiClientError extends Error {
   override name = 'ApiClientError';

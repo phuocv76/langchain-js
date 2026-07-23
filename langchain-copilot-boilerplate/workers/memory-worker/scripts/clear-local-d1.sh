@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# Clears all chat state from the LOCAL D1 database (agent-memory, --env offline):
-# transcripts, engine checkpoints, thread metadata, and thread titles.
-# Schema and d1_migrations are kept, so no re-migration is needed.
-# Remote/production D1 is never touched.
+# Clears all chat state from a LOCAL D1 database: transcripts, engine
+# checkpoints, thread metadata, and thread titles. Schema and d1_migrations
+# are kept, so no re-migration is needed. Remote/production D1 is never
+# touched.
 #
-# Usage: pnpm --filter @repo/memory-worker db:clear:local
+# Usage: clear-local-d1.sh <wrangler-offline-env> <database-name>
+#   pnpm --filter @repo/memory-worker db:clear:local:space
+#   pnpm --filter @repo/memory-worker db:clear:local:kitchen
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-npx wrangler d1 execute agent-memory --local --env offline --command "
+WRANGLER_ENV="${1:?usage: clear-local-d1.sh <wrangler-offline-env> <database-name>}"
+DATABASE_NAME="${2:?usage: clear-local-d1.sh <wrangler-offline-env> <database-name>}"
+
+npx wrangler d1 execute "$DATABASE_NAME" --local --env "$WRANGLER_ENV" --command "
   DELETE FROM memory_turns;
   DELETE FROM checkpoint_writes;
   DELETE FROM checkpoints;
@@ -25,7 +30,7 @@ if command -v sqlite3 >/dev/null 2>&1; then
   done
 fi
 
-npx wrangler d1 execute agent-memory --local --env offline --json --command "
+npx wrangler d1 execute "$DATABASE_NAME" --local --env "$WRANGLER_ENV" --json --command "
   SELECT 'memory_turns' AS tbl, count(*) AS rows FROM memory_turns
   UNION ALL SELECT 'checkpoints', count(*) FROM checkpoints
   UNION ALL SELECT 'checkpoint_writes', count(*) FROM checkpoint_writes
@@ -35,4 +40,4 @@ npx wrangler d1 execute agent-memory --local --env offline --json --command "
   const rows = JSON.parse(require('fs').readFileSync(0, 'utf8'))[0].results;
   for (const r of rows) console.log(\`  \${r.tbl}: \${r.rows}\`);
 "
-echo "local agent-memory cleared."
+echo "local $DATABASE_NAME cleared."

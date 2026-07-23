@@ -3,22 +3,32 @@
  * calls — the same wire protocol the LangGraph SDK (and therefore
  * CopilotKit's LangGraph adapter) speaks. Run with:
  *
- *   cd apps/agent && npx tsx src/regression/embed-api-check.ts
+ *   cd apps/space-agent && npx tsx src/regression/embed-api-check.ts
  *
  * Verifies: thread creation, streamed runs, state read-back through the
  * injected D1 checkpointer, and cross-run memory on the same thread.
  */
 
-const BASE = process.env.REGRESSION_EMBED_URL ?? 'http://localhost:2100';
-const GRAPH_ID = 'workspaceAgent';
+// Internal
+import {
+  AGENT_HEADER_ACCESS_TOKEN,
+  AGENT_HEADER_REQUEST_ID,
+  AGENT_HEADER_ROLES,
+  AGENT_HEADER_USER_EMAIL,
+  AGENT_HEADER_USER_ID,
+} from '@repo/shared';
+import { WORKSPACE_AGENT_ID } from '@agent/graphs/agent-ids.js';
 
-/** Same sanitized claim keys the AG-UI bridge injects from verified auth. */
+const BASE = process.env.REGRESSION_EMBED_URL ?? 'http://localhost:2100';
+const GRAPH_ID = WORKSPACE_AGENT_ID;
+
+/** Same sanitized claim keys the embed app injects from verified auth. */
 const configurable = {
-  'x-agent-request-id': 'regression-request',
-  'x-agent-user-id': 'regression-user',
-  'x-agent-user-email': 'regression@example.com',
-  'x-agent-roles': encodeURIComponent(JSON.stringify(['user'])),
-  'x-agent-access-token': 'regression-token',
+  [AGENT_HEADER_REQUEST_ID]: 'regression-request',
+  [AGENT_HEADER_USER_ID]: 'regression-user',
+  [AGENT_HEADER_USER_EMAIL]: 'regression@example.com',
+  [AGENT_HEADER_ROLES]: encodeURIComponent(JSON.stringify(['user'])),
+  [AGENT_HEADER_ACCESS_TOKEN]: 'regression-token',
 };
 
 interface SseEvent {

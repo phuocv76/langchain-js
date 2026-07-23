@@ -1,30 +1,46 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // One codebase, one deployment per product. The top level carries only
+  // shared settings and declares NO bindings — always run wrangler with
+  // `--env <product>` or `--env <product>-offline`; a bare `wrangler deploy`
+  // would ship a worker without a database.
+  //
+  // Per product, two envs:
+  //   <product>          deployable: D1 + Vectorize + AI
+  //   <product>-offline  local-only (`pnpm dev:<product>`): the AI binding
+  //                      always proxies to Cloudflare (needs `wrangler
+  //                      login`) and Vectorize has no local mode, so it
+  //                      drops both and the worker degrades to recent-turn
+  //                      recall. Never deploy an -offline env.
+  //
+  // To add a product: copy the kitchen pair, rename, create its D1 database,
+  // fill in database_id, and add matching dev/db scripts in package.json.
   "name": "agent-memory",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-13",
-  "d1_databases": [
-    {
-      "binding": "MEMORY_DB",
-      "database_name": "agent-memory",
-      "database_id": "replace-with-your-d1-database-id"
-    }
-  ],
-  "vectorize": [
-    {
-      "binding": "MEMORY_INDEX",
-      "index_name": "agent-memory"
-    }
-  ],
-  "ai": {
-    "binding": "AI"
-  },
   "env": {
-    // Local-only profile for `pnpm dev:offline`: the AI binding always proxies
-    // to Cloudflare (needs `wrangler login`) and Vectorize has no local mode,
-    // so this env drops both and the Worker degrades to recent-turn recall.
-    // Never deploy this env.
-    "offline": {
+    "space": {
+      "d1_databases": [
+        {
+          "binding": "MEMORY_DB",
+          // Space keeps the original database name (predates the
+          // multi-product layout) so existing data stays reachable; new
+          // products use <product>-agent-memory.
+          "database_name": "agent-memory",
+          "database_id": "replace-with-your-d1-database-id"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "MEMORY_INDEX",
+          "index_name": "agent-memory"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      }
+    },
+    "space-offline": {
       "vars": {
         "REQUIRE_CF_ACCESS": "false"
       },
@@ -33,6 +49,36 @@
           "binding": "MEMORY_DB",
           "database_name": "agent-memory",
           "database_id": "replace-with-your-d1-database-id"
+        }
+      ]
+    },
+    "kitchen": {
+      "d1_databases": [
+        {
+          "binding": "MEMORY_DB",
+          "database_name": "kitchen-agent-memory",
+          "database_id": "replace-with-your-kitchen-d1-database-id"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "MEMORY_INDEX",
+          "index_name": "kitchen-agent-memory"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      }
+    },
+    "kitchen-offline": {
+      "vars": {
+        "REQUIRE_CF_ACCESS": "false"
+      },
+      "d1_databases": [
+        {
+          "binding": "MEMORY_DB",
+          "database_name": "kitchen-agent-memory",
+          "database_id": "replace-with-your-kitchen-d1-database-id"
         }
       ]
     }

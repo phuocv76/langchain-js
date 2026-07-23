@@ -1,13 +1,13 @@
-import { env } from '@agent/config/env.js';
-import { CloudflareRealtimePublisher } from '@agent/services/realtime/cloudflare-publisher.js';
-import { NoopRealtimePublisher } from '@agent/services/realtime/noop-publisher.js';
+import { env } from '../../config/env.js';
+import { CloudflareRealtimePublisher } from './cloudflare-publisher.js';
+import { NoopRealtimePublisher } from './noop-publisher.js';
 import type {
-  PublishRequest,
+  RealtimePublishRequest,
   RealtimeEvent,
   RealtimePublisher,
-} from '@agent/services/realtime/types.js';
+} from './types.js';
 
-export type { PublishRequest, RealtimeEvent, RealtimePublisher };
+export type { RealtimePublishRequest, RealtimeEvent, RealtimePublisher };
 
 const createPublisher = (): RealtimePublisher => {
   if (env.REALTIME_WORKER_URL && env.REALTIME_PUBLISH_SECRET) {
@@ -22,7 +22,7 @@ const publisher: RealtimePublisher = createPublisher();
  * Best-effort fan-out: never fails the calling mutation path.
  */
 export const publishRealtimeEvent = async (
-  request: PublishRequest,
+  request: RealtimePublishRequest,
 ): Promise<void> => {
   try {
     await publisher.publish(request);

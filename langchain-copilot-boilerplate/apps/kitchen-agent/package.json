@@ -1,0 +1,33 @@
+{
+  "name": "@repo/kitchen-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Kitchen product agent server (skeleton): its own graphs and agent registry over the shared @repo/agent-runtime composition. Copy this shape for each new product.",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "build": "tsup --config tsup.config.ts",
+    "start": "node --env-file=.env dist/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@copilotkit/sdk-js": "catalog:",
+    "@langchain/core": "catalog:",
+    "@langchain/langgraph": "catalog:",
+    "@repo/agent-runtime": "workspace:*",
+    "@repo/prompts": "workspace:*",
+    "hono": "catalog:",
+    "langchain": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "tsup": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  }
+}

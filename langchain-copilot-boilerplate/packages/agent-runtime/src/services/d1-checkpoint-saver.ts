@@ -13,12 +13,15 @@ import {
 } from '@langchain/langgraph-checkpoint';
 
 // Internal
-import { env } from '@agent/config/env.js';
+import { env } from '../config/env.js';
 import {
   CHECKPOINT_USER_ID_KEY,
   getCheckpointUserId,
-} from '@agent/services/checkpoint-user-context.js';
-import { accessHeaders } from '@agent/services/memory-client.js';
+} from './checkpoint-user-context.js';
+import {
+  accessHeaders,
+  requestMemoryWorker,
+} from './memory-worker-client.js';
 
 /**
  * Unlike the durable-memory enhancement layer, checkpoint persistence is
@@ -84,24 +87,20 @@ export class D1CheckpointSaver extends BaseCheckpointSaver {
         'MEMORY_WORKER_URL must be configured for durable checkpoints',
       );
     }
-    const response = await fetch(`${this.#baseUrl}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...this.#headers },
-      body: JSON.stringify(body),
+    return requestMemoryWorker<T>({
+      baseUrl: this.#baseUrl,
+      path,
+      body,
+      headers: this.#headers,
+      context: 'Checkpoint service',
     });
-    if (!response.ok) {
-      throw new CheckpointServiceError(
-        `Checkpoint service ${path} returned ${response.status}`,
-      );
-    }
-    return (await response.json()) as T;
   }
 
   /**
    * Resolves the user/thread scope for a checkpoint op.
    *
    * Prefer `configurable[x-agent-user-id]` when LangGraph still has it (the
-   * bridge always sets it on the initial invoke). Fall back to the
+   * embed app injects it into every run body). Fall back to the
    * request-scoped AsyncLocalStorage value for the configs LangGraph
    * synthesizes itself — those only carry thread_id / checkpoint_ns /
    * checkpoint_id and would otherwise fail the multi-tenant check.

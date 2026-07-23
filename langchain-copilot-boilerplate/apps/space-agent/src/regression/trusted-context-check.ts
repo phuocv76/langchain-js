@@ -7,7 +7,7 @@
  * `RUN_ERROR: Trusted agent context is unavailable` on any workspace tool
  * call. Run with the gateway harness up:
  *
- *   cd apps/agent && npx tsx --env-file=.env src/regression/trusted-context-check.ts
+ *   cd apps/space-agent && npx tsx --env-file=.env src/regression/trusted-context-check.ts
  *
  * Requires API_BASE_URL so workspace tools are advertised to the model. The
  * product API rejecting the regression token (401) is fine — the assertion
@@ -19,10 +19,11 @@ import { randomUUID } from 'node:crypto';
 
 // Libs for third party
 import { HttpAgent } from '@ag-ui/client';
+import { WORKSPACE_AGENT_ID } from '@agent/graphs/agent-ids.js';
 
 const RUN_URL =
   process.env.REGRESSION_COPILOTKIT_URL ??
-  'http://localhost:2200/copilotkit/agent/workspaceAgent/run';
+  `http://localhost:2200/copilotkit/agent/${WORKSPACE_AGENT_ID}/run`;
 
 const main = async (): Promise<void> => {
   if (!process.env.API_BASE_URL) {

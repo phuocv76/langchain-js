@@ -2,7 +2,7 @@
  * Regression harness: CopilotKit runtime → @ag-ui/langgraph LangGraphAgent → the
  * PRODUCTION embed app (`createLangGraphEmbedApp`) → D1 checkpoints. Run with:
  *
- *   cd apps/agent && npx tsx --env-file=.env src/regression/copilotkit-gateway-harness.ts
+ *   cd apps/space-agent && npx tsx --env-file=.env src/regression/copilotkit-gateway-harness.ts
  *
  * Port 2100: production embed app (assistants shim + embed server + verified
  * claim injection). Port 2200: CopilotKit Hono handler, multi-route
@@ -26,8 +26,15 @@ import {
 import { Hono } from 'hono';
 
 // Internal
-import { LANGGRAPH_BASE_PATH } from '@agent/config/intelligence.js';
-import { createLangGraphEmbedApp } from '@agent/services/langgraph-embed-app.js';
+import {
+  AGENT_HEADER_ACCESS_TOKEN,
+  AGENT_HEADER_REQUEST_ID,
+  AGENT_HEADER_ROLES,
+  AGENT_HEADER_USER_EMAIL,
+  AGENT_HEADER_USER_ID,
+} from '@repo/shared';
+import { LANGGRAPH_BASE_PATH } from '@repo/agent-runtime';
+import { AGENT_REGISTRY, createWorkspaceEmbedApp } from '@agent/graphs/registry.js';
 import { approvalGraph } from './approval-graph.js';
 import { REGRESSION_GRAPH_ID, REGRESSION_USER_ID } from './embed-server-harness.js';
 
@@ -39,11 +46,11 @@ const COPILOTKIT_PORT = 2200;
 
 /** Same sanitized claim headers `requireAgentUser` injects from verified auth. */
 const regressionClaimHeaders = {
-  'x-agent-request-id': 'regression-request',
-  'x-agent-user-id': REGRESSION_USER_ID,
-  'x-agent-user-email': 'regression@example.com',
-  'x-agent-roles': encodeURIComponent(JSON.stringify(['user'])),
-  'x-agent-access-token': 'regression-token',
+  [AGENT_HEADER_REQUEST_ID]: 'regression-request',
+  [AGENT_HEADER_USER_ID]: REGRESSION_USER_ID,
+  [AGENT_HEADER_USER_EMAIL]: 'regression@example.com',
+  [AGENT_HEADER_ROLES]: encodeURIComponent(JSON.stringify(['user'])),
+  [AGENT_HEADER_ACCESS_TOKEN]: 'regression-token',
 };
 
 // Mounted under the same base path the BFF uses so prefix handling in the
@@ -51,7 +58,7 @@ const regressionClaimHeaders = {
 const gateway = new Hono();
 gateway.route(
   LANGGRAPH_BASE_PATH,
-  createLangGraphEmbedApp({ [APPROVAL_GRAPH_ID]: approvalGraph }),
+  createWorkspaceEmbedApp({ [APPROVAL_GRAPH_ID]: approvalGraph }),
 );
 
 serve({ fetch: gateway.fetch, port: EMBED_PORT }, (info) => {
@@ -67,9 +74,13 @@ const agentFor = (graphId: string): LangGraphAgent =>
     headerFactory: () => regressionClaimHeaders,
   });
 
+// Every production agent from the registry (so new registry entries are
+// covered here automatically) plus the regression-only approval graph.
 const runtime = new CopilotRuntime({
   agents: {
-    [REGRESSION_GRAPH_ID]: agentFor(REGRESSION_GRAPH_ID),
+    ...Object.fromEntries(
+      AGENT_REGISTRY.map((agent) => [agent.id, agentFor(agent.graphId)]),
+    ),
     [APPROVAL_GRAPH_ID]: agentFor(APPROVAL_GRAPH_ID),
   },
 });

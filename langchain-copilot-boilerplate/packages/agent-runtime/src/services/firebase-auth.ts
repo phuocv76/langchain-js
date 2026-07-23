@@ -16,7 +16,7 @@ export type VerifiedFirebaseUser = {
 
 /**
  * Verifies a Firebase ID token with Google's JWKS (no Admin private key).
- * Same approach as apps/realtime-worker — only FIREBASE_PROJECT_ID is required.
+ * Same approach as workers/realtime-worker — only FIREBASE_PROJECT_ID is required.
  */
 export const verifyFirebaseIdToken = async (
   idToken: string,

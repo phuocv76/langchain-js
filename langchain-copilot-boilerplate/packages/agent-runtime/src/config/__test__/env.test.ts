@@ -8,14 +8,6 @@ describe('agent environment schema', () => {
     assert.equal(envSchema.safeParse({ NODE_ENV: 'test' }).success, true);
   });
 
-  it('leaves LangGraph deployment URL optional (Studio only)', () => {
-    const result = envSchema.safeParse({ NODE_ENV: 'test' });
-    assert.equal(result.success, true);
-    if (result.success) {
-      assert.equal(result.data.LANGGRAPH_DEPLOYMENT_URL, undefined);
-    }
-  });
-
   it('accepts a bare memory worker URL for local development', () => {
     const result = envSchema.safeParse({
       NODE_ENV: 'test',
@@ -43,15 +35,6 @@ describe('agent environment schema', () => {
     });
 
     assert.equal(result.success, false);
-  });
-
-  it('accepts a product API base URL without a service token', () => {
-    const result = envSchema.safeParse({
-      NODE_ENV: 'test',
-      API_BASE_URL: 'https://api.example.com',
-    });
-
-    assert.equal(result.success, true);
   });
 
   it('rejects a lone realtime worker URL or secret', () => {

@@ -25,6 +25,9 @@ out/
 # LangGraph dev server
 .langgraph_api/
 
+# Generated artifacts
+release-manifest.json
+
 # Logs
 *.log
 npm-debug.log*

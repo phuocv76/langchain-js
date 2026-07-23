@@ -6,11 +6,11 @@ import { createAgent, summarizationMiddleware } from 'langchain';
 // Internal
 import { WORKSPACE_AGENT_SYSTEM_PROMPT } from '@agent/agents/workspace-agent/prompt.js';
 import { env } from '@agent/config/env.js';
-import { getChatModel } from '@agent/models/index.js';
-import { durableMemoryMiddleware } from '@agent/middleware/durable-memory.js';
-import { DurableMemoryStateSchema } from '@agent/middleware/durable-memory-state.js';
+import { getChatModel } from '@repo/agent-runtime';
+import { durableMemoryMiddleware } from '@repo/agent-runtime';
+import { DurableMemoryStateSchema } from '@repo/agent-runtime';
 import { workspaceToolsMiddleware } from '@agent/middleware/workspace-tools.js';
-import { D1CheckpointSaver } from '@agent/services/d1-checkpoint-saver.js';
+import { D1CheckpointSaver } from '@repo/agent-runtime';
 import { tools } from '@agent/tools/index.js';
 
 const copilotkitMiddleware = createCopilotkitMiddleware({
@@ -28,7 +28,7 @@ export const createCheckpointer = () =>
 
 /** Builds a ReAct-style conversational agent with CopilotKit streaming support. */
 const buildWorkspaceAgent = () => {
-  const model = getChatModel();
+  const model = getChatModel('workspace-agent-v1');
 
   return createAgent({
     model,

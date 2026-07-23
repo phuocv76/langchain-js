@@ -2,15 +2,17 @@
 import type { Context } from 'hono';
 
 // Types
-import type { HealthStatus } from '@repo/types';
+import type { HealthStatus } from '@repo/shared';
 
-/** Handles `GET /health` with a simple liveness payload. */
-export const handleHealth = (c: Context): Response => {
-  const payload: HealthStatus = {
-    status: 'ok',
-    service: '@repo/bff',
-    uptimeSeconds: Math.round(process.uptime()),
+/** Builds a `GET /health` handler with a simple liveness payload. */
+export const createHealthHandler =
+  (service: string) =>
+  (c: Context): Response => {
+    const payload: HealthStatus = {
+      status: 'ok',
+      service,
+      uptimeSeconds: Math.round(process.uptime()),
+    };
+
+    return c.json(payload);
   };
-
-  return c.json(payload);
-};

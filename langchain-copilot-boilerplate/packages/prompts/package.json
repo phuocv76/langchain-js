@@ -12,8 +12,9 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@repo/config": "workspace:*",
-    "eslint": "^9.17.0",
-    "typescript": "^5.9.3"
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:"
   }
 }

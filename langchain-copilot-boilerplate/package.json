@@ -4,25 +4,24 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.11.0",
-  "description": "Agent runtime boilerplate: BFF (Hono + CopilotKit) + LangGraph agents with tools for an existing REST API.",
+  "description": "Multi-product agent backend monorepo: per-product Hono + CopilotKit servers over a shared LangGraph runtime, with Cloudflare Workers for D1 memory and realtime sync.",
   "scripts": {
-    "dev": "turbo run dev",
-    "dev:bff": "turbo run dev --filter=@repo/bff",
-    "dev:agent": "turbo run dev --filter=@repo/agent",
-    "dev:web": "turbo run dev --filter=@repo/web",
+    "dev": "turbo run dev --filter=!@repo/kitchen-agent",
+    "dev:space": "turbo run dev --filter=@repo/space-agent",
+    "dev:kitchen": "turbo run dev --filter=@repo/kitchen-agent",
     "dev:realtime": "turbo run dev --filter=@repo/realtime-worker",
-    "deploy:realtime": "pnpm --filter @repo/realtime-worker deploy",
+    "deploy:realtime:space": "pnpm --filter @repo/realtime-worker deploy:space",
+    "deploy:realtime:kitchen": "pnpm --filter @repo/realtime-worker deploy:kitchen",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore"
   },
   "devDependencies": {
     "prettier": "^3.9.5",
     "turbo": "^2.10.4",
-    "typescript": "^5.9.3"
+    "typescript": "catalog:"
   },
   "engines": {
     "node": ">=20"

@@ -2,6 +2,9 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 
+// Internal
+import { WORKSPACE_TOOL_NAMES } from '@agent/tools/workspace-tool-names.js';
+
 /**
  * Read-only tools over the existing product REST API (space-api).
  *
@@ -26,7 +29,7 @@ const notWired = async (): Promise<string> => {
 
 export const workspaceTools = [
   tool(notWired, {
-    name: 'search_employees',
+    name: WORKSPACE_TOOL_NAMES.searchEmployees,
     description:
       'Search the employee directory by name or keyword. Returns a compact list of matching employees.',
     schema: z.object({
@@ -35,18 +38,18 @@ export const workspaceTools = [
     }),
   }),
   tool(notWired, {
-    name: 'get_employee_profile',
+    name: WORKSPACE_TOOL_NAMES.employeeProfile,
     description:
       "Get one employee's profile: role, working status, contact, and general info.",
     schema: z.object({ email }),
   }),
   tool(notWired, {
-    name: 'get_employee_projects',
+    name: WORKSPACE_TOOL_NAMES.employeeProjects,
     description: 'List the projects an employee participates in.',
     schema: z.object({ email }),
   }),
   tool(notWired, {
-    name: 'get_employee_time_off',
+    name: WORKSPACE_TOOL_NAMES.employeeTimeOff,
     description:
       "Get an employee's time-off records, optionally for a specific year.",
     schema: z.object({
@@ -55,7 +58,7 @@ export const workspaceTools = [
     }),
   }),
   tool(notWired, {
-    name: 'list_projects',
+    name: WORKSPACE_TOOL_NAMES.listProjects,
     description: 'List workspace projects, optionally filtered by a search query.',
     schema: z.object({
       query: z.string().optional().describe('Project name or keyword.'),
@@ -63,14 +66,14 @@ export const workspaceTools = [
     }),
   }),
   tool(notWired, {
-    name: 'get_project_members',
+    name: WORKSPACE_TOOL_NAMES.projectMembers,
     description: 'List the members of a project by its project id.',
     schema: z.object({
       projectId: z.string().describe('Project id from list_projects.'),
     }),
   }),
   tool(notWired, {
-    name: 'get_workspace_stats',
+    name: WORKSPACE_TOOL_NAMES.workspaceStats,
     description: 'Get overall workspace statistics (employees, projects, activity).',
     schema: z.object({}),
   }),

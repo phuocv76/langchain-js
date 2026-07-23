@@ -1,58 +1,27 @@
 // Internal
-import { env } from '@agent/config/env.js';
+import type { MemoryIdentity, MemoryTurn } from '@repo/shared';
+import { env } from '../config/env.js';
+import { requestMemoryWorker } from './memory-worker-client.js';
 
-export interface MemoryIdentity {
-  readonly requestId: string;
-  readonly userId: string;
-  readonly threadId: string;
-}
-
-export interface MemoryTurn extends MemoryIdentity {
-  readonly role: 'user' | 'assistant' | 'tool';
-  readonly content: string;
-  /** Engine-assigned chat message id; lets history reads dedupe against live runs. */
-  readonly messageId?: string;
-  readonly toolMetadata?: unknown;
-}
-
-class MemoryServiceError extends Error {
-  override name = 'MemoryServiceError';
-}
-
-const isConfigured = (): boolean => Boolean(env.MEMORY_WORKER_URL);
+export type { MemoryIdentity, MemoryTurn };
 
 /**
- * The Cloudflare Access service-token pair is only needed to cross the
- * Access boundary in front of a deployed worker; local `wrangler dev`
- * is reached directly, so the headers are attached only when configured.
+ * Durable memory is an enhancement layer: when MEMORY_WORKER_URL is unset
+ * every operation is a silent no-op, so the chat works without the worker.
  */
-export const accessHeaders = (): Record<string, string> =>
-  env.CF_ACCESS_CLIENT_ID && env.CF_ACCESS_CLIENT_SECRET
-    ? {
-        'CF-Access-Client-Id': env.CF_ACCESS_CLIENT_ID,
-        'CF-Access-Client-Secret': env.CF_ACCESS_CLIENT_SECRET,
-      }
-    : {};
-
 const requestMemoryService = async <T>(
   path: string,
   method: 'POST' | 'DELETE',
   body: unknown,
 ): Promise<T | undefined> => {
-  if (!isConfigured()) return undefined;
-
-  const response = await fetch(`${env.MEMORY_WORKER_URL}${path}`, {
+  if (!env.MEMORY_WORKER_URL) return undefined;
+  return requestMemoryWorker<T>({
+    baseUrl: env.MEMORY_WORKER_URL,
+    path,
+    body,
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...accessHeaders(),
-    },
-    body: JSON.stringify(body),
+    context: 'Memory service',
   });
-  if (!response.ok) {
-    throw new MemoryServiceError(`Memory service returned ${response.status}`);
-  }
-  return (await response.json()) as T;
 };
 
 export const appendMemoryTurn = async (
@@ -83,22 +52,12 @@ export const retrieveMemory = async (
     .map((content) => content.slice(0, 800));
 };
 
+/**
+ * Deletes the whole thread scope — transcript turns, titles, engine
+ * checkpoints, and platform thread metadata — in one atomic worker batch.
+ */
 export const deleteMemoryThread = async (identity: MemoryIdentity): Promise<void> => {
   await requestMemoryService('/v1/threads', 'DELETE', identity);
-};
-
-/**
- * Deletes the thread's engine checkpoints (short-term memory in D1), scoped
- * to the owning user. Used when a thread is deleted so the conversation
- * state is truly gone, not just hidden from the sidebar.
- */
-export const deleteCheckpointThread = async (
-  identity: MemoryIdentity,
-): Promise<void> => {
-  await requestMemoryService('/v1/checkpoints/delete-thread', 'POST', {
-    userId: identity.userId,
-    threadId: identity.threadId,
-  });
 };
 
 export const renameMemoryThread = async (

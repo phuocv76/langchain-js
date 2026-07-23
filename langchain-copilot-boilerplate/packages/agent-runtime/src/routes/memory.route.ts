@@ -7,7 +7,7 @@ import {
   listThreadHistoryMessages,
   listThreads,
   renameThread,
-} from '@agent/controllers/memory.controller.js';
+} from '../controllers/memory.controller.js';
 
 /** D1 transcript endpoints consumed by the custom web history UI. */
 export const memoryRoute = new Hono()

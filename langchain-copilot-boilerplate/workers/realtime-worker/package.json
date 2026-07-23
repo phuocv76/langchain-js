@@ -4,20 +4,25 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --port 8789 --inspector-port 9231",
-    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --env space --port 8789 --inspector-port 9232",
+    "dev:space": "wrangler dev --env space --port 8789 --inspector-port 9232",
+    "dev:kitchen": "wrangler dev --env kitchen --port 8791 --inspector-port 9233",
+    "deploy:space": "wrangler deploy --env space",
+    "deploy:kitchen": "wrangler deploy --env kitchen",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "jose": "^6.0.11",
-    "zod": "^3.24.1"
+    "jose": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260320.0",
-    "@repo/config": "workspace:*",
-    "eslint": "^9.17.0",
-    "typescript": "^5.9.3",
-    "wrangler": "^4.67.0"
+    "@cloudflare/workers-types": "catalog:",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/shared": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
   }
 }

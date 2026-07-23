@@ -10,9 +10,13 @@ const corsHeaders = (request: Request, env: Env): HeadersInit => {
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-  const allowOrigin = allowed.includes(origin) ? origin : allowed[0] ?? '';
+  // An origin outside the allowlist gets no Allow-Origin header at all —
+  // echoing a fallback origin would tell the browser to accept the response.
+  if (!allowed.includes(origin)) {
+    return {};
+  }
   return {
-    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers':
       'Authorization, Content-Type, X-Realtime-Publish-Secret',

@@ -6,23 +6,10 @@ export interface Env {
   readonly CORS_ORIGINS?: string;
 }
 
-export type RealtimeEventType =
-  | 'MESSAGE_CREATED'
-  | 'THREAD_CREATED'
-  | 'THREAD_UPDATED'
-  | 'THREAD_RENAMED'
-  | 'THREAD_DELETED';
-
-export type RealtimeEvent = {
-  readonly type: RealtimeEventType;
-  readonly threadId: string;
-  readonly updatedAt: string;
-  readonly messageId?: string;
-  readonly role?: string;
-  readonly title?: string | null;
-};
-
-export type PublishBody = {
-  readonly userId: string;
-  readonly event: RealtimeEvent;
-};
+// Shared wire contract (type-only import — erased at build, so the worker
+// keeps zero runtime workspace dependencies).
+export type {
+  RealtimeEvent,
+  RealtimeEventType,
+  RealtimePublishRequest,
+} from '@repo/shared';

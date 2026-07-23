@@ -2,27 +2,32 @@
 import { ChatOpenAI } from '@langchain/openai';
 
 // Internal
-import { env } from '@agent/config/env.js';
+import { env } from '../config/env.js';
 
-let cachedModel: ChatOpenAI | undefined;
+const cachedModels = new Map<string, ChatOpenAI>();
 
 /**
- * Returns a singleton ChatOpenAI instance configured from the environment.
+ * Returns a memoized ChatOpenAI instance configured from the environment.
  *
+ * @param promptCacheKey Provider prompt-cache key. The system prompt and tool
+ *   definitions are stable across conversations, so each agent should pass a
+ *   key of its own (e.g. "workspace-agent-v1") to let the provider reuse
+ *   that prefix when prompt caching applies.
  * @throws When `OPENAI_API_KEY` is not set.
  */
-export const getChatModel = (): ChatOpenAI => {
-  if (cachedModel) {
-    return cachedModel;
+export const getChatModel = (promptCacheKey = 'agent-v1'): ChatOpenAI => {
+  const cached = cachedModels.get(promptCacheKey);
+  if (cached) {
+    return cached;
   }
 
   if (!env.OPENAI_API_KEY) {
     throw new Error(
-      'OPENAI_API_KEY is required to run the agent. Set it in apps/agent/.env.',
+      "OPENAI_API_KEY is required to run the agent. Set it in the server's .env.",
     );
   }
 
-  cachedModel = new ChatOpenAI({
+  const model = new ChatOpenAI({
     apiKey: env.OPENAI_API_KEY,
     model: env.OPENAI_MODEL,
     streaming: true,
@@ -33,15 +38,14 @@ export const getChatModel = (): ChatOpenAI => {
     // is deliberately configurable for tasks where deeper reasoning matters.
     reasoning: { effort: env.OPENAI_REASONING_EFFORT },
     maxTokens: env.OPENAI_MAX_OUTPUT_TOKENS,
-    // The system prompt and tool definitions are stable across conversations;
-    // this key lets the provider reuse that prefix when prompt caching applies.
-    promptCacheKey: 'workspace-agent-v1',
+    promptCacheKey,
     // Fail promptly on a transient provider issue rather than stacking retries
     // behind an already slow chat request. Adjust these through the environment
     // if the deployment needs a different reliability/latency trade-off.
     timeout: env.OPENAI_REQUEST_TIMEOUT_MS,
     maxRetries: env.OPENAI_MAX_RETRIES,
   });
+  cachedModels.set(promptCacheKey, model);
 
-  return cachedModel;
+  return model;
 };

@@ -1,12 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
-  "globalDependencies": [
-    "apps/bff/.env",
-    "apps/bff/.env.example",
-    "apps/web/.env",
-    "apps/web/.env.example"
-  ],
   "globalEnv": [
     "NODE_ENV",
     "OPENAI_API_KEY",
@@ -16,7 +10,6 @@
     "OPENAI_REQUEST_TIMEOUT_MS",
     "OPENAI_MAX_RETRIES",
     "AGENT_PORT",
-    "LANGGRAPH_DEPLOYMENT_URL",
     "CORS_ORIGINS",
     "ALLOWED_EMAIL_DOMAINS",
     "FIREBASE_PROJECT_ID",
@@ -31,14 +24,7 @@
     "COPILOTKIT_LICENSE_TOKEN",
     "LANGSMITH_TRACING",
     "LANGSMITH_API_KEY",
-    "LANGSMITH_PROJECT",
-    "VITE_COPILOT_RUNTIME_URL",
-    "VITE_AGENT_ID",
-    "VITE_FIREBASE_API_KEY",
-    "VITE_FIREBASE_AUTH_DOMAIN",
-    "VITE_FIREBASE_PROJECT_ID",
-    "VITE_FIREBASE_APP_ID",
-    "VITE_REALTIME_WS_URL"
+    "LANGSMITH_PROJECT"
   ],
   "tasks": {
     "dev": {
@@ -49,18 +35,12 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
-    "lint": {
-      "dependsOn": ["^build"]
-    },
-    "typecheck": {
-      "dependsOn": ["^build"]
-    },
+    // Internal packages export TypeScript source (just-in-time packages),
+    // so lint/typecheck/test need no upstream build artifacts.
+    "lint": {},
+    "typecheck": {},
     "test": {
-      "dependsOn": ["^build"],
       "outputs": []
-    },
-    "clean": {
-      "cache": false
     }
   }
 }

@@ -1,22 +1,9 @@
+import type { MemoryIdentity as Identity, MemoryTurn } from '@repo/shared';
 import { handleCheckpointRequest } from './checkpoints';
 import { handleThreadStoreRequest } from './thread-store';
 import { type Env, isString, json } from './shared';
 
 export type { Env } from './shared';
-
-type Identity = {
-  readonly userId: string;
-  readonly threadId: string;
-  readonly requestId: string;
-};
-
-type MemoryTurn = Identity & {
-  readonly role: 'user' | 'assistant' | 'tool';
-  readonly content: string;
-  /** Engine-assigned chat message id; lets history reads dedupe against live runs. */
-  readonly messageId?: string;
-  readonly toolMetadata?: unknown;
-};
 
 const requireAccess = (request: Request, env: Env): Response | undefined => {
   // Cloudflare Access validates the service token before this Worker executes.
@@ -291,16 +278,25 @@ const deleteScope = async (
       );
     }
   }
-  await env.MEMORY_DB.prepare(
-    `DELETE FROM memory_turns WHERE user_id = ?${clause}`,
-  )
-    .bind(...bindings)
-    .run();
-  await env.MEMORY_DB.prepare(
-    `DELETE FROM thread_titles WHERE user_id = ?${clause}`,
-  )
-    .bind(...bindings)
-    .run();
+  // Deleting a scope removes EVERYTHING recorded for it: transcript turns,
+  // titles, engine checkpoints, and platform thread metadata. Anything less
+  // makes "your memory has been deleted" a lie — checkpoints alone still
+  // hold the full conversation state. One atomic batch so a partial failure
+  // cannot leave a half-deleted scope.
+  const tables = [
+    'memory_turns',
+    'thread_titles',
+    'checkpoints',
+    'checkpoint_writes',
+    'thread_store',
+  ];
+  await env.MEMORY_DB.batch(
+    tables.map((table) =>
+      env.MEMORY_DB.prepare(
+        `DELETE FROM ${table} WHERE user_id = ?${clause}`,
+      ).bind(...bindings),
+    ),
+  );
   return json({ deleted: turns.results.length });
 };
 

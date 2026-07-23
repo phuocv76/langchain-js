@@ -1,23 +1,57 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // One codebase, one deployment per product — same model as the memory
+  // worker. The top level carries only shared settings and declares NO
+  // bindings — always run wrangler with `--env <product>`. Separate
+  // deployments keep products isolated: Durable Objects are keyed by
+  // Firebase uid only, so a shared deployment would fan kitchen events into
+  // space sessions for a user who has both products open.
+  //
+  // To add a product: copy the kitchen env, rename, set its CORS origin,
+  // and add matching dev/deploy scripts in package.json. Secrets
+  // (FIREBASE_PROJECT_ID, REALTIME_PUBLISH_SECRET) are set per deployment:
+  // `wrangler secret put <NAME> --env <product>`.
   "name": "agent-realtime",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-13",
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "USER_HUB",
-        "class_name": "UserHub"
+  "env": {
+    "space": {
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "USER_HUB",
+            "class_name": "UserHub"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["UserHub"]
+        }
+      ],
+      "vars": {
+        "CORS_ORIGINS": "http://localhost:3000"
       }
-    ]
-  },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["UserHub"]
+    },
+    "kitchen": {
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "USER_HUB",
+            "class_name": "UserHub"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["UserHub"]
+        }
+      ],
+      "vars": {
+        "CORS_ORIGINS": "http://localhost:3100"
+      }
     }
-  ],
-  "vars": {
-    "CORS_ORIGINS": "http://localhost:3000"
   }
 }

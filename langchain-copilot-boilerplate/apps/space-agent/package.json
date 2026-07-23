@@ -1,29 +1,51 @@
 {
-  "name": "@repo/bff",
+  "name": "@repo/space-agent",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "BFF Hono server composing the CopilotKit runtime over in-process LangGraph agents.",
+  "description": "Space product agent server: workspace graphs, tools, and agent registry over the shared @repo/agent-runtime composition.",
   "scripts": {
     "dev": "tsx watch --env-file=.env src/server.ts",
     "build": "tsup --config tsup.config.ts",
     "start": "node --env-file=.env dist/server.js",
+    "studio": "langgraphjs dev --port 2024 --no-browser",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "test": "tsx --env-file=.env --test src/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "regression:harness:embed": "tsx --env-file=.env src/regression/embed-server-harness.ts",
+    "regression:harness:gateway": "tsx --env-file=.env src/regression/copilotkit-gateway-harness.ts",
+    "regression:chat-flow": "tsx --env-file=.env src/regression/chat-flow-check.ts",
+    "regression:hitl": "tsx --env-file=.env src/regression/hitl-tools-check.ts",
+    "regression:trusted-context": "tsx --env-file=.env src/regression/trusted-context-check.ts",
+    "regression:summary-parity": "tsx --env-file=.env src/regression/summary-parity-check.ts",
+    "regression:embed-api": "tsx --env-file=.env src/regression/embed-api-check.ts",
+    "regression:resume-agent": "tsx --env-file=.env src/regression/resume-agent-check.ts"
   },
   "dependencies": {
-    "@copilotkit/runtime": "1.62.3",
-    "@hono/node-server": "^1.19.14",
-    "@repo/agent": "workspace:*",
-    "hono": "^4.12.28",
-    "zod": "^3.24.1"
+    "@ag-ui/client": "catalog:",
+    "@ag-ui/core": "catalog:",
+    "@ag-ui/langgraph": "catalog:",
+    "@copilotkit/runtime": "catalog:",
+    "@copilotkit/sdk-js": "catalog:",
+    "@hono/node-server": "catalog:",
+    "@langchain/core": "catalog:",
+    "@langchain/langgraph": "catalog:",
+    "@langchain/langgraph-api": "catalog:",
+    "@repo/agent-runtime": "workspace:*",
+    "@repo/prompts": "workspace:*",
+    "@repo/shared": "workspace:*",
+    "hono": "catalog:",
+    "langchain": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@repo/config": "workspace:*",
-    "@types/node": "^22.20.1",
-    "eslint": "^9.17.0",
-    "tsup": "^8.5.1",
-    "tsx": "^4.22.4",
-    "typescript": "^5.9.3"
+    "@langchain/langgraph-cli": "^1.3.1",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "tsup": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
   }
 }

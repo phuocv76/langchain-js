@@ -3,29 +3,27 @@ import { createEmbedServer } from '@langchain/langgraph-api/experimental/embed';
 import { Hono } from 'hono';
 
 // Internal
-import { DEFAULT_AGENT_ID } from '@repo/shared';
-import { createCheckpointer, graph } from '@agent/agents/workspace-agent/graph.js';
-import { env } from '@agent/config/env.js';
-import { identityFromRequest } from '@agent/middleware/agent-user-auth.js';
-import { runWithCheckpointUser } from '@agent/services/checkpoint-user-context.js';
-import {
-  D1ThreadSaver,
-  createInMemoryThreadSaver,
-} from '@agent/services/d1-thread-saver.js';
+import { AGENT_CLAIM_HEADERS, AGENT_CLAIM_PREFIX } from '@repo/shared';
+import { identityFromRequest } from '../middleware/agent-user-auth.js';
+import { runWithCheckpointUser } from './checkpoint-user-context.js';
 
-type EmbedGraphs = Parameters<typeof createEmbedServer>[0]['graph'];
+type EmbedServerOptions = Parameters<typeof createEmbedServer>[0];
+export type EmbedGraphs = EmbedServerOptions['graph'];
+
+export interface EmbedAppOptions {
+  /** Graphs to serve, keyed by graph id. */
+  readonly graphs: EmbedGraphs;
+  readonly checkpointer: EmbedServerOptions['checkpointer'];
+  readonly threads: EmbedServerOptions['threads'];
+}
+
+/** Structural view of a compiled graph for the assistants shim. */
+type DrawableGraph = {
+  getGraphAsync: () => Promise<{ toJSON: () => unknown }>;
+};
 
 /** Endpoints whose JSON body carries the config the graph will run under. */
 const RUN_CREATE_PATH = /\/runs(\/(stream|wait|batch))?$/;
-
-/** Sanitized claim headers set by `requireAgentUser` after verification. */
-const AGENT_CLAIM_HEADERS = [
-  'x-agent-request-id',
-  'x-agent-user-id',
-  'x-agent-user-email',
-  'x-agent-roles',
-  'x-agent-access-token',
-] as const;
 
 /**
  * Rewrites a run-creation body so its `config.configurable` carries the
@@ -61,7 +59,7 @@ const withVerifiedRunClaims = (
   };
   const configurable = { ...(body.config?.configurable ?? {}) };
   for (const key of Object.keys(configurable)) {
-    if (key.startsWith('x-agent-')) delete configurable[key];
+    if (key.startsWith(AGENT_CLAIM_PREFIX)) delete configurable[key];
   }
   for (const key of AGENT_CLAIM_HEADERS) {
     const value = headers.get(key);
@@ -106,7 +104,7 @@ const buildAssistantsShim = (graphs: EmbedGraphs): Hono => {
 
   shim.get('/assistants/:assistant_id/graph', async (c) => {
     const target = graphs[c.req.param('assistant_id')] as
-      | typeof graph
+      | DrawableGraph
       | undefined;
     if (!target) return c.json({ error: 'Assistant not found' }, 404);
     const drawable = await target.getGraphAsync();
@@ -129,25 +127,25 @@ const buildAssistantsShim = (graphs: EmbedGraphs): Hono => {
 
 /**
  * Builds the embedded LangGraph platform app: threads/runs routes over the
- * workspace graph with D1 checkpoints and D1 thread metadata (in-process
- * fallbacks when MEMORY_WORKER_URL is unset).
+ * injected graphs and persistence. Graph wiring is the caller's job — this
+ * module owns only the mechanism (see `graphs/registry.ts` for the product
+ * wiring).
  *
  * Must be mounted behind `requireAgentUser`: every route runs inside the
- * verified user's AsyncLocalStorage context so D1CheckpointSaver and
- * D1ThreadSaver can resolve the tenant even for configs LangGraph
- * synthesizes without identity claims (`getState`, resume-at-head walks),
- * and run-creation bodies are rewritten to carry the verified claims.
- *
- * @param extraGraphs Additional graphs to serve (regression harness only).
+ * verified user's AsyncLocalStorage context so the injected savers can
+ * resolve the tenant even for configs LangGraph synthesizes without identity
+ * claims (`getState`, resume-at-head walks), and run-creation bodies are
+ * rewritten to carry the verified claims.
  */
-export const createLangGraphEmbedApp = (extraGraphs: EmbedGraphs = {}): Hono => {
-  const graphs: EmbedGraphs = { [DEFAULT_AGENT_ID]: graph, ...extraGraphs };
+export const createLangGraphEmbedApp = ({
+  graphs,
+  checkpointer,
+  threads,
+}: EmbedAppOptions): Hono => {
   const embed = createEmbedServer({
     graph: graphs,
-    checkpointer: createCheckpointer(),
-    threads: env.MEMORY_WORKER_URL
-      ? new D1ThreadSaver()
-      : createInMemoryThreadSaver(),
+    checkpointer,
+    threads,
   });
 
   const app = new Hono();

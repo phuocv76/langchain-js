@@ -1,0 +1,13 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // Tests run with --env-file=.env, so the env file must participate in
+    // the task hash — scoped here instead of root globalDependencies so an
+    // .env edit only invalidates this package's test cache, not every task.
+    "test": {
+      "inputs": ["$TURBO_DEFAULT$", ".env"],
+      "outputs": []
+    }
+  }
+}

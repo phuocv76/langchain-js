@@ -120,23 +120,23 @@ describe('D1ThreadSaver', () => {
     await asUser(async () => {
       const created = await saver.set('t-1', {
         kind: 'put',
-        metadata: { graph_id: 'workspaceAgent' },
+        metadata: { graph_id: 'example-graph' },
       });
-      assert.deepEqual(created.metadata, { graph_id: 'workspaceAgent' });
+      assert.deepEqual(created.metadata, { graph_id: 'example-graph' });
 
       const patched = await saver.set('t-1', {
         kind: 'patch',
         metadata: { label: 'demo' },
       });
       assert.deepEqual(patched.metadata, {
-        graph_id: 'workspaceAgent',
+        graph_id: 'example-graph',
         label: 'demo',
       });
 
       const fetched = await saver.get('t-1');
       assert.equal(fetched.thread_id, 't-1');
       assert.deepEqual(fetched.metadata, {
-        graph_id: 'workspaceAgent',
+        graph_id: 'example-graph',
         label: 'demo',
       });
     });

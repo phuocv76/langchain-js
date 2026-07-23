@@ -3,18 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Framework-agnostic constants and utilities shared across apps.",
+  "description": "Cross-product wire contracts: identity claim headers, memory turns, realtime events, summary prefix, and health payloads.",
   "exports": {
-    ".": "./src/index.ts",
-    "./constants": "./src/constants.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@repo/config": "workspace:*",
-    "eslint": "^9.17.0",
-    "typescript": "^5.9.3"
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "eslint": "catalog:",
+    "typescript": "catalog:"
   }
 }
