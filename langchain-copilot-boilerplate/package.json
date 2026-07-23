@@ -13,6 +13,7 @@
     "dev:realtime": "turbo run dev --filter=@repo/realtime-worker",
     "deploy:realtime": "pnpm --filter @repo/realtime-worker deploy",
     "build": "turbo run build",
+    "build:web": "turbo run build --filter=@repo/web",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",

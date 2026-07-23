@@ -32,6 +32,21 @@ Requires the BFF on `http://localhost:4000` with this origin in its
 `CORS_ORIGINS` (the default `.env.example` already allows
 `http://localhost:3000`).
 
+## Deploy to Cloudflare Pages
+
+When the Cloudflare project uses `langchain-copilot-boilerplate` as its root
+directory, configure:
+
+- Build command: `pnpm build:web`
+- Build output directory: `apps/web/dist`
+
+If the Cloudflare project root directory is instead `apps/web`, use
+`pnpm build` and `dist`.
+
+Add every required `VITE_*` value from `.env.example` to the Cloudflare Pages
+build environment. These values are embedded into the browser bundle at build
+time. Also add the deployed Pages origin to the BFF's `CORS_ORIGINS`.
+
 ## Layout
 
 ```
