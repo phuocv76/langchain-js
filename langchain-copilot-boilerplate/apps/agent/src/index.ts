@@ -8,6 +8,8 @@
  */
 export { corsOrigins, env } from './config/env.js';
 export {
+  type CopilotRuntimeOptions,
+  type LangGraphFetch,
   LANGGRAPH_BASE_PATH,
   createCopilotRuntime,
 } from './config/intelligence.js';

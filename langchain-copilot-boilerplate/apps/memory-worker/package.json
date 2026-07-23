@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --env offline --port 8788 --inspector-port 9230",
-    "dev:offline": "wrangler dev --env offline --port 8788 --inspector-port 9230",
+    "dev": "wrangler dev --port 8788 --inspector-port 9230",
+    "dev:offline": "wrangler dev --port 8788 --inspector-port 9230",
     "deploy": "wrangler deploy",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "db:apply:local": "wrangler d1 migrations apply agent-memory --local --env offline",
+    "db:apply:local": "wrangler d1 migrations apply langchain-boilerplate-agent-memory --local",
     "db:clear:local": "bash scripts/clear-local-d1.sh",
     "db:apply:remote": "wrangler d1 migrations apply agent-memory --remote"
   },

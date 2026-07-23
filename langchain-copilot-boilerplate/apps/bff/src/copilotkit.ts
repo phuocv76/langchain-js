@@ -2,24 +2,32 @@
 import { createCopilotHonoHandler } from '@copilotkit/runtime/v2';
 
 // Internal
-import { corsOrigins, createCopilotRuntime } from '@repo/agent';
+import {
+  type LangGraphFetch,
+  corsOrigins,
+  createCopilotRuntime,
+} from '@repo/agent';
 
 const BASE_PATH = '/copilotkit';
+
+interface CopilotKitHandlerOptions {
+  readonly langgraphFetch: LangGraphFetch;
+}
 
 /**
  * Builds the CopilotKit Hono handlers. Agents are stock LangGraphAgent
  * adapters calling the BFF's embedded LangGraph platform app (`/langgraph`)
- * over loopback with the caller's verified token; checkpoints and thread
- * metadata live in D1.
+ * through an in-process Fetch transport with the caller's verified token;
+ * checkpoints and thread metadata live in D1.
  *
  * The React client POSTs to the base path (single-route envelope). Other
  * clients may hit multi-route paths (`/agent/:id/run`, `/info`, …). Dispatch
  * on method + pathname so both work.
  */
-const createCopilotKitHandler = (): ((
-  request: Request,
-) => Promise<Response>) => {
-  const runtime = createCopilotRuntime();
+export const createCopilotKitRequestHandler = ({
+  langgraphFetch,
+}: CopilotKitHandlerOptions): ((request: Request) => Promise<Response>) => {
+  const runtime = createCopilotRuntime({ langgraphFetch });
   const cors = {
     origin: corsOrigins,
     credentials: true,
@@ -52,6 +60,3 @@ const createCopilotKitHandler = (): ((
     return Promise.resolve(multiRouteApp.fetch(request));
   };
 };
-
-/** Shared CopilotKit handler for the BFF Hono server. */
-export const handleCopilotKitRequest = createCopilotKitHandler();

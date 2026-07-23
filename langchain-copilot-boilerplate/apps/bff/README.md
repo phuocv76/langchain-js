@@ -3,7 +3,8 @@
 Hono BFF that mounts the CopilotKit runtime (`createCopilotHonoHandler`) and
 the embedded LangGraph platform app (`/langgraph`, D1 checkpoints + thread
 metadata when `MEMORY_WORKER_URL` is set). The runtime's `LangGraphAgent`
-adapters call `/langgraph` over loopback with the caller's Firebase token.
+adapters call `/langgraph` through an in-process Fetch transport with the
+caller's Firebase token, so the same app runs on Node.js and Cloudflare Workers.
 
 ## Endpoints
 
@@ -32,3 +33,25 @@ LangGraph Studio is optional: `pnpm --filter @repo/agent studio`.
 Reads from `apps/bff/.env` (see `.env.example`):
 `FIREBASE_PROJECT_ID`, `OPENAI_*`, `AGENT_PORT`, `CORS_ORIGINS`,
 `API_BASE_URL`, and optional `MEMORY_WORKER_URL` / realtime vars.
+
+## Deploy to Cloudflare Workers
+
+`src/worker.ts` is the Worker entry point and `wrangler.jsonc` intentionally
+contains no application variables. Configure all production variables and
+secrets in Cloudflare Workers → Settings → Variables and Secrets.
+
+From the repository root:
+
+```bash
+pnpm --filter @repo/bff run typecheck
+pnpm --filter @repo/bff exec wrangler deploy --dry-run
+pnpm --filter @repo/bff run deploy
+```
+
+For Workers Builds, use the monorepo root and:
+
+```text
+Build:   pnpm --filter @repo/bff run typecheck
+Deploy:  pnpm --filter @repo/bff run deploy
+Version: pnpm --filter @repo/bff exec wrangler versions upload
+```

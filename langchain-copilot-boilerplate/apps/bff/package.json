@@ -6,8 +6,11 @@
   "description": "BFF Hono server composing the CopilotKit runtime over in-process LangGraph agents.",
   "scripts": {
     "dev": "tsx watch --env-file=.env src/server.ts",
+    "dev:worker": "wrangler dev",
     "build": "tsup --config tsup.config.ts",
     "start": "node --env-file=.env dist/server.js",
+    "deploy": "wrangler deploy",
+    "versions:upload": "wrangler versions upload",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
@@ -19,11 +22,13 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@repo/config": "workspace:*",
     "@types/node": "^22.20.1",
     "eslint": "^9.17.0",
     "tsup": "^8.5.1",
     "tsx": "^4.22.4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.110.0"
   }
 }
